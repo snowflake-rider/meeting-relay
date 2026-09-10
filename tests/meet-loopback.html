@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>Meet sender WebRTC loopback test</title>
+<style>body{font:16px system-ui;background:#102130;color:#dff9ed;padding:30px}video{width:640px;max-width:100%}</style>
+<h1>Meet sender · synthetic WebRTC loopback</h1><p id="result">Running…</p><video id="receiver" autoplay muted playsinline></video>
+<script src="../capture-sender.js"></script>
+<script>
+(async()=>{
+ const result=document.getElementById('result'),video=document.getElementById('receiver');
+ const canvas=document.createElement('canvas');canvas.width=640;canvas.height=360;const ctx=canvas.getContext('2d');
+ let frame=0,relay;const drawing=setInterval(()=>{ctx.fillStyle=frame++%2?'#116277':'#174357';ctx.fillRect(0,0,640,360);ctx.fillStyle='white';ctx.font='28px system-ui';ctx.fillText('Meet relay frame '+frame,40,110);},50);
+ const stream=canvas.captureStream(20),pc=new RTCPeerConnection({iceServers:[]});
+ pc.ontrack=event=>{video.srcObject=event.streams[0];video.play().catch(()=>{});};
+ let incoming=[{session:'loopback',payload:{hello:true}}];
+ const gather=()=>new Promise(resolve=>{if(pc.iceGatheringState==='complete')return resolve();pc.addEventListener('icegatheringstatechange',()=>{if(pc.iceGatheringState==='complete')resolve();});});
+ let timeout;
+ try {
+  relay=createCaptureSender(stream,{onStatus(){},request:async(url,body)=>{
+   if(!body){const messages=incoming;incoming=[];return messages;}
+   if(body.channel!=='meet')throw Error('Wrong channel');
+   if(body.payload.offer){await pc.setRemoteDescription(body.payload.offer);await pc.setLocalDescription(await pc.createAnswer());await gather();incoming.push({session:'loopback',payload:{answer:pc.localDescription,epoch:body.payload.epoch}});}
+   return {};
+  }});
+  await Promise.race([new Promise(resolve=>{video.onplaying=()=>resolve();}),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('No received video within 12 seconds')),12000);})]);
+  const stats=await pc.getStats();let decoded=0;stats.forEach(s=>{if(s.type==='inbound-rtp'&&s.kind==='video')decoded=s.framesDecoded||0;});
+  if(video.videoWidth!==640||video.videoHeight!==360||!decoded)throw Error('Expected decoded 640x360 video');
+  relay.stop();if(stream.getVideoTracks()[0].readyState!=='live')throw Error('Source track stopped');
+  result.textContent='PASS — 640 × 360 received; '+decoded+' decoded frames; source track preserved after stop.';
+ }catch(error){result.textContent='FAIL — '+error.message;}
+ finally{clearTimeout(timeout);clearInterval(drawing);relay?.stop();pc.close();stream.getTracks().forEach(t=>t.stop());}
+})();
+</script>

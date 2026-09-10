@@ -39,3 +39,12 @@ test('popup rejects unrelated, insecure, and credential-bearing links', async ()
     assert.ok(h.elements.status.textContent);
   }
 });
+test('Meet links and custom relay ports route to the Meet player', async () => {
+  const h = await harness({meetingURL:'https://meet.google.com/abc-defg-hij', relayPort:18747});
+  await h.elements.open.handlers.click();
+  assert.deepEqual(h.tabs, ['https://meet.google.com/abc-defg-hij']);
+  await h.elements.copy.handlers.click();
+  assert.equal(h.copied[0], 'http://127.0.0.1:18747/?source=meet');
+  await h.elements.capture.handlers.click();
+  assert.equal(h.tabs[1], 'http://127.0.0.1:18747/capture');
+});

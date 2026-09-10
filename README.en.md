@@ -21,6 +21,44 @@ A local WebRTC relay with a full-window player, floating controls, and one-comma
 
 ---
 
+## Google Meet support · feature branch
+
+This worktree is **`feature/google-meet`**. The verified Whale version remains on `main`. Meet support relays a **user-selected browser tab**, including its meeting UI, rather than relying on Meet's internal video elements.
+
+### Run beside the stable Whale server
+
+Keep Whale on **18745** and use **18747** for this worktree.
+
+```powershell
+# Windows PowerShell, inside this worktree
+.\cls-whale.ps1 --source meet --no-open --port 18747
+```
+
+```sh
+# macOS, inside this worktree
+python3 launch.py --source meet --no-open --port 18747
+```
+
+1. Join Google Meet in **Chrome**.
+2. Open **http://127.0.0.1:18747/capture** in that same Chrome browser.
+3. Click start yourself, select **Chrome tab → your Meet tab**, and enable **tab audio sharing**.
+4. Open **http://127.0.0.1:18747/?source=meet** in the receiving Chrome/Wave/cmux window.
+5. Keep the capture page and meeting tab open. Stopping the relay does not leave the meeting.
+
+The capture page works without the extension. Start capture in **Chrome where Meet is open**, not in the receiving Wave window. No microphone permission is requested; your own microphone is not recorded. Only audio output from the selected tab is captured. Missing audio is explicitly reported.
+
+### Optional extension workflow
+
+Load this worktree's `extension` folder as a separate development extension: **Whale + Meet Local Relay 0.4.0**. Save your Meet link and use **Open class**. Set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. For a default-port deployment, match the popup/server to `18745`. The configurable port affects the popup/Meet path; Whale's automatic content script keeps its existing port 18745.
+
+### Verification boundaries
+
+- All 26 automated tests pass, including Whale regressions and Meet/Whale signaling isolation.
+- `tests/meet-loopback.html` verified real WebRTC forwarding of a synthetic 640 × 360 video in Chrome, including decoded frames and preservation of the original track after stopping.
+- Tests cover invalid URLs/ports, cancelled sharing, window/screen rejection, missing audio, receiver isolation, and track cleanup.
+- Chrome requires a real user gesture and a fresh sharing selection. Capture is never selected automatically. [Screen capture API documentation](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)
+- Live Meet audio/video, Windows, and Wave playback still require verification. The existing recording limit of approximately 256 MiB remains.
+
 ## A little more room for your class
 
 Keep Whale connected to your meeting. Watch the relayed video in **Chrome**, or in a **cmux browser tab on macOS**, with no persistent header or footer taking up space.
@@ -244,7 +282,7 @@ Manual relay uses **18744**; extension relay uses **18745**. Use one receiving t
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/capture.test.cjs
 ```
 
 On Windows, replace `python3` with `py -3`. Node.js is needed only for the extension tests. After editing `recording.js`, `player-ui.js`, or `player-ui.css`, run `python3 build_player_ui.py` to update both player HTML files.

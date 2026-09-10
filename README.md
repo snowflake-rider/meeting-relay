@@ -21,6 +21,44 @@
 
 ---
 
+## Google Meet 지원 · 기능 브랜치
+
+이 worktree는 **`feature/google-meet`**입니다. 검증된 Whale 버전은 `main`에 그대로 있으며, 이 브랜치에서는 **사용자가 선택한 Meet 브라우저 탭**의 영상·오디오를 중계합니다. Meet의 내부 영상 요소를 직접 추출하지 않으므로 회의 UI도 포함됩니다.
+
+### 기존 Whale과 동시에 개발하기
+
+기존 Whale은 **18745**, 이 worktree의 Meet 개발 서버는 **18747**을 사용합니다.
+
+```powershell
+# Windows PowerShell — 이 worktree 폴더에서
+.\cls-whale.ps1 --source meet --no-open --port 18747
+```
+
+```sh
+# macOS — 이 worktree 폴더에서
+python3 launch.py --source meet --no-open --port 18747
+```
+
+1. **Chrome**에서 Google Meet 회의에 입장합니다.
+2. 같은 Chrome에서 **http://127.0.0.1:18747/capture**를 엽니다.
+3. 시작 버튼을 직접 누르고 **Chrome 탭 → Meet 회의 탭**을 선택합니다. **탭 오디오 공유**를 켜세요.
+4. **http://127.0.0.1:18747/?source=meet**를 Chrome·Wave·cmux 수신 창에 붙여 넣습니다.
+5. 캡처 페이지와 회의 탭을 열어둡니다. 중계 중지는 Meet 회의 참가 상태를 종료하지 않습니다.
+
+이 경로는 확장 설치 없이도 사용할 수 있습니다. 캡처는 수신용 Wave 창이 아니라 **Meet가 열린 Chrome**에서 시작하세요. 캡처 창에서 마이크 권한을 요청하지 않으며, 사용자의 마이크는 녹음되지 않습니다. 공유한 탭에서 출력되는 오디오만 대상입니다. 소리가 없으면 페이지에 안내가 표시됩니다.
+
+### 확장 팝업에서 사용하기
+
+이 worktree의 `extension` 폴더를 별도 개발 확장으로 불러오면 **Whale + Meet Local Relay 0.4.0**이 표시됩니다. Meet 링크를 저장하고 **Open class**로 엽니다. **Local server port**를 `18747`로 바꾼 뒤 **Google Meet · 탭 중계 열기**를 누르세요. 기본 포트 `18745`로 배포할 때는 팝업과 서버의 포트를 맞추면 됩니다. 이 포트 설정은 팝업/Meet 캡처에 적용되며 Whale 자동 주입 경로는 기존 `18745`를 유지합니다.
+
+### 확인 범위
+
+- Whale 회귀 테스트와 Meet/Whale 메시지 채널 분리를 포함해 자동 테스트 26개를 통과했습니다.
+- Chrome에서 `tests/meet-loopback.html`로 실제 WebRTC 합성 영상 640×360 수신·디코딩과 중지 후 원본 트랙 보존을 확인했습니다.
+- 잘못된 링크·포트, 공유 취소, 창/전체 화면 선택 거부, 오디오 누락, 수신자 분리와 중지 시 트랙 정리를 검사합니다.
+- Chrome은 탭 공유를 시작할 때 실제 사용자 동작과 매번 공유 선택을 요구합니다. 자동 선택하지 않습니다. [공식 화면 공유 API](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia)
+- 실제 Meet 영상·음성 수신, Windows 및 Wave 재생은 별도 확인이 필요합니다. 기존 녹화 기능의 약 256 MiB 제한도 그대로입니다.
+
 ## 강의와 실습을 한 화면에서
 
 Whale로 회의에 입장하고, 수신한 영상을 **Chrome**이나 터미널의 브라우저 패널에서 봅니다. 상·하단 바를 숨긴 플레이어와 오른쪽 플로팅 도구로 화면을 넓게 사용하세요.
@@ -248,7 +286,7 @@ flowchart LR
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/capture.test.cjs
 ```
 
 Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScript 테스트에만 필요합니다. `recording.js`, `player-ui.js`, `player-ui.css`를 수정한 뒤 **`python3 build_player_ui.py`**로 두 플레이어 HTML을 갱신하세요.
