@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title desc">
+<title id="title">Whale ON Relay</title><desc id="desc">Your class. Your browser. A local video relay for Windows and macOS.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0b1223"/><stop offset="1" stop-color="#122e45"/></linearGradient><linearGradient id="accent"><stop stop-color="#42e8bf"/><stop offset="1" stop-color="#64abff"/></linearGradient></defs>
+<rect width="1280" height="360" rx="24" fill="url(#bg)"/>
+<circle cx="1130" cy="50" r="210" fill="#53b5ff" opacity=".05"/><circle cx="1130" cy="50" r="150" fill="none" stroke="#5cd8df" stroke-opacity=".13"/>
+<rect x="64" y="57" width="205" height="28" rx="14" fill="#42e8bf" fill-opacity=".1"/>
+<text x="80" y="76" fill="#7defd2" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">LOCAL VIDEO RELAY</text>
+<text x="64" y="155" fill="#f1f7ff" font-family="Arial,sans-serif" font-weight="700" font-size="62">Whale ON Relay</text>
+<text x="67" y="202" fill="#a8bfd5" font-family="Arial,sans-serif" font-size="25">Your class. Your browser.</text>
+<path d="M65 247 H710" stroke="url(#accent)" stroke-width="2"/>
+<text x="67" y="290" fill="#bdd1e4" font-family="Arial,sans-serif" font-size="15" letter-spacing="1">WINDOWS + macOS   /   WEBRTC   /   LOCALHOST</text>
+<rect x="865" y="117" width="302" height="177" rx="16" fill="#0b182a" stroke="#4b7899"/>
+<rect x="880" y="132" width="272" height="147" rx="7" fill="#15394c"/>
+<path d="M996 170 L996 243 L1055 207 Z" fill="url(#accent)"/>
+<rect x="1120" y="151" width="21" height="109" rx="10" fill="#e0f4ff" fill-opacity=".15"/>
+<circle cx="1130" cy="173" r="3" fill="#70e4d4"/><circle cx="1130" cy="202" r="3" fill="#70e4d4"/><circle cx="1130" cy="231" r="3" fill="#70e4d4"/>
+</svg>

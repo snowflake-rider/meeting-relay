@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Whale Local Relay",
+  "version": "0.3.0",
+  "description": "웨일온 영상을 이 컴퓨터의 Chrome·cmux 플레이어로 연결합니다.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://one.whaleon.naver.com/*"
+      ],
+      "js": [
+        "relay.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    }
+  ],
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "Whale ON Relay",
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Whale ON Relay</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><span class="eyebrow">LOCAL VIDEO RELAY</span><h1>Whale ON Relay</h1><p>Your class. Your browser.</p></header>
+<form id="settings">
+<label for="meeting">Class invitation link <span lang="ko">수업 링크</span></label>
+<input id="meeting" type="url" placeholder="https://whaleon.us/o/…" required autocomplete="off" spellcheck="false" aria-describedby="hint">
+<p id="hint">Saved only in this browser. Paste your Whale ON invitation link.</p>
+<div class="actions"><button type="submit">Save link</button><button id="open" type="button" class="primary">Open class ↗</button></div>
+</form>
+<p id="status" role="status" aria-live="polite"></p>
+<section><h2>Watch in Chrome / cmux</h2><p>Run the local server, then paste this address into your receiving browser.</p><code>http://127.0.0.1:18745/</code><button id="copy" type="button">Copy player address</button><p class="note">Keep Whale and the meeting open. This extension cannot start the Python server.</p></section>
+<script src="popup.js"></script>
+</body></html>

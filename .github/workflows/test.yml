@@ -1,0 +1,28 @@
+name: Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m unittest discover -s tests -p "test_*.py"
+      - run: node --test tests/extension.test.cjs tests/popup.test.cjs
+      - name: PowerShell launcher smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = & .\cls-whale.ps1 --no-open
+          if ($LASTEXITCODE -ne 0 -or $url -ne 'http://127.0.0.1:18745/') { throw 'Startup failed' }
+          $url = & .\cls-whale.ps1 --check
+          if ($LASTEXITCODE -ne 0 -or $url -ne 'http://127.0.0.1:18745/') { throw 'Health check failed' }
