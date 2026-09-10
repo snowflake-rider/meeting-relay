@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Whale ON Relay — 강의는 넓게, 작업은 한곳에서" width="100%">
+<img src="docs/banner.svg" alt="Meeting Relay — 강의는 넓게, 작업은 한곳에서" width="100%">
 
 <br>
 
@@ -55,8 +55,8 @@ Whale로 회의에 입장하고, 수신한 영상을 **Chrome**이나 터미널�
 ### 1 · 프로젝트 받기
 
 ```sh
-git clone https://github.com/snowflake-rider/whale-on-relay.git
-cd whale-on-relay
+git clone https://github.com/snowflake-rider/meeting-relay.git
+cd meeting-relay
 ```
 
 Git을 사용하지 않으면 **Code → Download ZIP**으로 내려받아 압축을 풉니다.
@@ -116,7 +116,7 @@ New-Item -ItemType File $PROFILE
 ```powershell
 function cls-whale {
     $env:WHALE_MEETING_URL = 'https://whaleon.us/o/YOUR-LINK'
-    & 'C:\Projects\whale-on-relay\cls-whale.ps1' @args
+    & 'C:\Projects\meeting-relay\cls-whale.ps1' @args
 }
 ```
 
@@ -134,7 +134,7 @@ cls-whale | Set-Clipboard
 ```zsh
 cls-whale() {
   WHALE_MEETING_URL='https://whaleon.us/o/YOUR-LINK' \
-    python3 "$HOME/Projects/whale-on-relay/launch.py" "$@"
+    python3 "$HOME/Projects/meeting-relay/launch.py" "$@"
 }
 ```
 

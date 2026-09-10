@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Whale ON Relay — Your class. Your browser." width="100%">
+<img src="docs/banner.svg" alt="Meeting Relay — Your class. Your browser." width="100%">
 
 <br>
 
@@ -53,8 +53,8 @@ You need **Whale**, **Python 3.9+**, and a receiving browser on the **same compu
 ### 1 · Get the project
 
 ```sh
-git clone https://github.com/snowflake-rider/whale-on-relay.git
-cd whale-on-relay
+git clone https://github.com/snowflake-rider/meeting-relay.git
+cd meeting-relay
 ```
 
 Or use **Code → Download ZIP**, then extract the archive.
@@ -112,7 +112,7 @@ Add this function, using your actual project path and meeting link:
 ```powershell
 function cls-whale {
     $env:WHALE_MEETING_URL = 'https://whaleon.us/o/YOUR-LINK'
-    & 'C:\Projects\whale-on-relay\cls-whale.ps1' @args
+    & 'C:\Projects\meeting-relay\cls-whale.ps1' @args
 }
 ```
 
@@ -130,7 +130,7 @@ Add this function to `~/.zshrc`, replacing the path and link:
 ```zsh
 cls-whale() {
   WHALE_MEETING_URL='https://whaleon.us/o/YOUR-LINK' \
-    python3 "$HOME/Projects/whale-on-relay/launch.py" "$@"
+    python3 "$HOME/Projects/meeting-relay/launch.py" "$@"
 }
 ```
 
