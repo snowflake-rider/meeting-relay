@@ -2,7 +2,98 @@
 <style>body{margin:0;background:#10151d;color:#ecf3ff;font:14px system-ui}header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px}h1{font-size:17px;margin:0}#status{flex:1;min-width:160px;color:#adc9ec}button{padding:8px 12px;border:1px solid #526a87;border-radius:7px;background:#22344b;color:inherit;cursor:pointer}video{display:block;width:100%;height:calc(100vh - 120px);object-fit:contain;background:#05080c}footer{padding:12px;color:#9bafca;font-size:12px}</style>
 <header><h1>Whale Relay</h1><span id="status">웨일 회의 연결 대기</span><button id="sound">소리 켜기</button><button id="full">전체 화면</button><button id="stop">중계 끊기</button></header>
 <video autoplay muted playsinline controls></video><footer>웨일 회의 창을 켜두세요. 영상은 이 컴퓨터 안에서 전달됩니다. 소리는 기본적으로 꺼져 있습니다.</footer><script src="/player.js"></script><style id="relay-ui-style">html,body{margin:0!important;width:100%;height:100%;overflow:hidden;background:#05070a;color:#edf4ff;font:14px system-ui}header,footer{display:none!important}#relay-stage{position:fixed;inset:0;overflow:hidden;touch-action:none;cursor:grab}#relay-stage:active{cursor:grabbing}#relay-stage video{display:block!important;width:100%!important;height:100%!important;object-fit:contain;background:transparent;transform-origin:center;max-width:none;user-select:none;pointer-events:none}#relay-tools{position:fixed;right:12px;top:50%;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:5px;padding:7px;border:1px solid #ffffff24;border-radius:14px;background:#142032d9;backdrop-filter:blur(14px);box-shadow:0 6px 24px #0005;opacity:.55;transition:opacity .18s}#relay-tools:hover,#relay-tools:focus-within{opacity:1}#relay-tools button{box-sizing:border-box;width:38px;height:36px;margin:0;padding:0;border:0;border-radius:7px;background:transparent;color:#edf4ff;cursor:pointer;font:18px system-ui;display:grid;place-items:center}#relay-tools button:hover{background:#ffffff20}#relay-tools button:focus-visible{outline:2px solid #a4d0ff;outline-offset:1px}#relay-tools #sound,#relay-tools #full,#relay-tools #stop{font-size:0}#relay-tools #sound::before{content:'♪';font-size:21px}#relay-tools #full::before{content:'⛶';font-size:24px}#relay-tools #stop::before{content:'⏹';font-size:19px}#relay-tools #zoom-reset{font-size:10px;font-weight:600}#relay-tools hr{width:24px;margin:2px auto;border:0;border-top:1px solid #ffffff25}#relay-status{position:fixed;left:12px;bottom:12px;z-index:30;max-width:calc(100% - 90px);padding:7px 11px;border-radius:8px;background:#142032da;color:#e1ebfa;font:12px system-ui;pointer-events:none;opacity:0;transition:opacity .2s}#relay-status.show{opacity:1}#status{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%);overflow:hidden}video::-webkit-media-controls{display:none!important}@media(max-height:430px){#relay-tools{gap:1px;padding:4px;right:7px}#relay-tools button{height:28px;width:32px}}@media(prefers-reduced-motion:reduce){#relay-tools,#relay-status{transition:none}}
-</style><script>function installRelayUI(video, getAudios) {
+
+#relay-tools #record{color:#ff777b}#relay-tools #record.recording{background:#812d3c;color:#fff}#recording-time{font:9px ui-monospace,monospace;text-align:center;color:#ffb1b5}#recording-time:empty{display:none}#recording-download:not([hidden]){display:grid;place-items:center;height:30px;color:#7de5cf;text-decoration:none;font-size:22px}#relay-tools{max-height:calc(100vh - 24px);overflow-y:auto}
+</style><script>/* Records received tracks, not the zoomed viewport. Never stops meeting tracks. */
+function createRelayRecorder(video, getAudios, callbacks) {
+  let active = null;
+  const tracks = () => [...new Set([
+    ...(video.srcObject?.getVideoTracks() || []),
+    ...(video.srcObject?.getAudioTracks() || []),
+    ...getAudios().flatMap(a => a.srcObject?.getAudioTracks() || [])
+  ])].filter(t => t.readyState === 'live');
+  const update = state => callbacks.onState(state);
+  function cleanup(s) {
+    clearInterval(s.timer);
+    s.clones.forEach(t => t.stop());
+    s.nodes.forEach(n => n.disconnect());
+    s.context?.close().catch(() => {});
+    if (active === s) active = null;
+  }
+  function stop(reason = '') {
+    const s = active;
+    if (!s || s.stopping) return;
+    s.stopping = true;
+    s.reason = reason;
+    update({status: 'saving'});
+    if (s.recorder?.state !== 'inactive' && s.recorder) s.recorder.stop();
+    // If audio setup is pending, start() finishes cleanup after it resumes.
+  }
+  async function start() {
+    if (active) return;
+    if (typeof MediaRecorder === 'undefined') throw new Error('이 브라우저는 녹화를 지원하지 않습니다. Chrome을 사용하세요.');
+    const originals = tracks();
+    if (!originals.some(t => t.kind === 'video')) throw new Error('영상이 연결된 뒤 녹화를 시작하세요.');
+    const s = {originals, clones: [], nodes: [], chunks: [], bytes: 0, stopping: false};
+    active = s;
+    update({status: 'starting'});
+    try {
+      const stream = new MediaStream();
+      const v = originals.find(t => t.kind === 'video').clone();
+      s.clones.push(v); stream.addTrack(v);
+      const audio = originals.filter(t => t.kind === 'audio');
+      if (audio.length) {
+        const AudioEngine = globalThis.AudioContext || globalThis.webkitAudioContext;
+        if (!AudioEngine) throw new Error('오디오 녹화를 지원하지 않는 브라우저입니다.');
+        s.context = new AudioEngine();
+        const destination = s.context.createMediaStreamDestination();
+        for (const original of audio) {
+          const clone = original.clone(); s.clones.push(clone);
+          const node = s.context.createMediaStreamSource(new MediaStream([clone]));
+          node.connect(destination); s.nodes.push(node);
+        }
+        const mixed = destination.stream.getAudioTracks()[0];
+        s.clones.push(mixed); stream.addTrack(mixed);
+        await s.context.resume();
+        if (s.context.state !== 'running') throw new Error('오디오 녹화를 시작하지 못했습니다. 다시 시도하세요.');
+      }
+      if (s.stopping) { cleanup(s); update({status: 'idle'}); return; }
+      const types = audio.length ? ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+      const mimeType = types.find(type => MediaRecorder.isTypeSupported(type));
+      if (!mimeType) throw new Error('지원되는 녹화 형식이 없습니다. Chrome을 사용하세요.');
+      s.recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond: 5000000});
+      s.recorder.ondataavailable = event => {
+        if (!event.data.size) return;
+        s.chunks.push(event.data); s.bytes += event.data.size;
+        if (s.bytes >= 256 * 1024 * 1024) stop('256 MB 한도에 도달해 자동 저장했습니다. 새 녹화를 시작할 수 있습니다.');
+      };
+      s.recorder.onerror = event => { s.reason = '녹화 오류: ' + (event.error?.message || '브라우저 오류'); stop(s.reason); };
+      s.recorder.onstop = () => {
+        const blob = new Blob(s.chunks, {type: s.recorder.mimeType || mimeType});
+        s.chunks = [];
+        cleanup(s);
+        update({status: 'idle'});
+        if (blob.size) callbacks.onFile(blob, blob.type.startsWith('video/mp4') ? 'mp4' : 'webm', s.reason);
+        else callbacks.onError(s.reason || '저장할 녹화 데이터가 없습니다.');
+      };
+      s.recorder.start(1000);
+      s.started = Date.now();
+      update({status: 'recording', seconds: 0, audio: Boolean(audio.length)});
+      s.timer = setInterval(() => {
+        if (s.stopping) return;
+        const current = tracks();
+        if (current.length !== originals.length || current.some(t => !originals.includes(t))) {
+          stop('영상·오디오 연결이 바뀌어 녹화를 저장했습니다. 다시 연결되면 새 녹화를 시작하세요.');
+          return;
+        }
+        update({status: 'recording', seconds: Math.floor((Date.now() - s.started) / 1000), audio: Boolean(audio.length)});
+      }, 500);
+    } catch (error) { cleanup(s); update({status: 'idle'}); throw error; }
+  }
+  return {start, stop, get active() { return Boolean(active); }};
+}
+
+function installRelayUI(video, getAudios) {
   if (document.querySelector('#relay-tools')) return;
   video.removeAttribute('controls');
   const stage=document.createElement('div');stage.id='relay-stage';
@@ -23,6 +114,30 @@
     const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;
     try{c.getContext('2d').drawImage(video,0,0);c.toBlob(blob=>{if(!blob){notify('스크린샷을 만들지 못했습니다');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);notify('원본 해상도 PNG 저장');},'image/png');}catch(e){notify('캡처 실패: '+e.message);}
   });
+  let recordingURL;
+  const record = add('record','●','녹화 시작/중지 (R)',()=>{
+    if(recorder.active) recorder.stop();
+    else recorder.start().catch(e=>notify(e.message));
+  });
+  record.setAttribute('aria-pressed','false');
+  const recordingLabel=document.createElement('span');recordingLabel.id='recording-time';tools.append(recordingLabel);
+  const download=document.createElement('a');download.id='recording-download';download.textContent='↓';download.title='마지막 녹화 다시 저장';download.setAttribute('aria-label',download.title);download.hidden=true;tools.append(download);
+  const recorder=createRelayRecorder(video,getAudios,{
+    onState(state){
+      const busy=state.status==='starting'||state.status==='saving';
+      record.disabled=busy;record.classList.toggle('recording',state.status==='recording');record.setAttribute('aria-pressed',String(state.status==='recording'));
+      record.textContent=state.status==='recording'?'■':'●';
+      recordingLabel.textContent=state.status==='recording'?Math.floor(state.seconds/60)+':'+String(state.seconds%60).padStart(2,'0'):busy?'…':'';
+      if(state.status==='recording'&&state.seconds===0)notify(state.audio?'녹화 시작 · 재생 음소거와 무관하게 오디오 포함':'녹화 시작 · 현재 오디오 트랙 없음');
+    },
+    onFile(blob,extension,reason){
+      if(recordingURL)URL.revokeObjectURL(recordingURL);
+      recordingURL=URL.createObjectURL(blob);download.href=recordingURL;download.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+extension;download.hidden=false;download.click();
+      notify(reason||'녹화 다운로드 요청 · ↓ 버튼으로 다시 저장 가능');
+    },
+    onError:notify
+  });
+  addEventListener('beforeunload',e=>{if(recorder.active){e.preventDefault();e.returnValue='';}});
   for(const [id,title] of [['sound','소리 켜기/끄기'],['full','전체 화면 (F)'],['stop','중계 끊기/다시 연결']]){const b=document.getElementById(id);if(b){b.title=title;b.setAttribute('aria-label',title);tools.append(b);}}
   document.querySelector('#sound')?.addEventListener('click',()=>{if(video.paused)getAudios().forEach(a=>a.pause());});
   const full=document.querySelector('#full');if(full)full.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>notify('전체 화면을 사용할 수 없습니다'));else video.webkitEnterFullscreen?.();};
@@ -42,7 +157,7 @@
   const sync=()=>{play.textContent=video.paused?'▶':'Ⅱ';play.title=video.paused?'재생 (Space)':'일시정지 (Space)';play.setAttribute('aria-label',play.title);getAudios().forEach(a=>{if(video.paused)a.pause();else a.play().catch(()=>{});});};
   video.addEventListener('pause',sync);video.addEventListener('play',sync);video.addEventListener('resize',render);addEventListener('resize',render);
   const status=document.getElementById('status');if(status)new MutationObserver(()=>{if(!status.textContent.startsWith('영상 재생'))notify(status.textContent);}).observe(status,{childList:true,subtree:true,characterData:true});
-  document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){e.preventDefault();play.click();}else if(k==='+'||k==='=')zoom(scale*1.25);else if(k==='-')zoom(scale/1.25);else if(k==='0')reset.click();else if(k==='s')document.querySelector('#snapshot').click();else if(k==='f')full?.click();});
+  document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){e.preventDefault();play.click();}else if(k==='+'||k==='=')zoom(scale*1.25);else if(k==='-')zoom(scale/1.25);else if(k==='0')reset.click();else if(k==='s')document.querySelector('#snapshot').click();else if(k==='f')full?.click();else if(k==='r')record.click();});
   sync();render();notify('휠·핀치로 확대 · 드래그로 이동 · 0으로 화면 맞춤');
 }
 

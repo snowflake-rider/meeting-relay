@@ -1,65 +1,83 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Whale ON Relay — Your class. Your browser." width="100%">
+<img src="docs/banner.svg" alt="Whale ON Relay — 강의는 넓게, 작업은 한곳에서" width="100%">
 
 <br>
 
-**Watch your Whale ON class in a browser tab that fits your workspace.**
+**한국어** · [English](README.en.md)
 
-A local WebRTC relay with a full-window player, floating controls, and one-command startup.
+**웨일온 강의를, 내 작업 공간에 맞는 브라우저 탭으로.**
+
+로컬 WebRTC 중계 · 여백 없는 플레이어 · 확대·스크린샷·녹화
 
 ![Windows](https://img.shields.io/badge/Windows-PowerShell-0078D4?style=flat-square)
 ![macOS](https://img.shields.io/badge/macOS-zsh-222222?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square)
 ![Status](https://img.shields.io/badge/status-experimental-E6B450?style=flat-square)
 
-[Quick start](#quick-start) · [Player controls](#player-controls) · [How it works](#how-it-works) · [Troubleshooting](#troubleshooting)
+[추천 환경](#추천-환경-wave-terminal) · [빠른 시작](#빠른-시작) · [플레이어 조작](#플레이어-조작) · [녹화](#녹화) · [문제 해결](#문제-해결)
 
 </div>
 
 ---
 
-## A little more room for your class
+## 강의와 실습을 한 화면에서
 
-Keep Whale connected to your meeting. Watch the relayed video in **Chrome**, or in a **cmux browser tab on macOS**, with no persistent header or footer taking up space.
+Whale로 회의에 입장하고, 수신한 영상을 **Chrome**이나 터미널의 브라우저 패널에서 봅니다. 상·하단 바를 숨긴 플레이어와 오른쪽 플로팅 도구로 화면을 넓게 사용하세요.
 
-| | What you get |
+| 기능 | 사용 경험 |
 | :--- | :--- |
-| **An uncluttered player** | Full-window video with a floating toolbar on the right. |
-| **A closer look** | Zoom from 1× to 8×, drag to pan, and reset to fit. |
-| **A moment to read** | Pause your local playback; resume to return to the live stream. |
-| **A frame to keep** | Save a PNG at the source video's resolution, without player controls. |
-| **One command** | Start or reuse the local server, open Whale, and print the player URL. |
-| **A local connection** | Python serves the player and signaling on `127.0.0.1`. No hosted relay service. |
+| **넓은 영상** | 고정 헤더·푸터 없이 창 전체를 활용합니다. |
+| **확대·이동** | 1–8배 확대하고, 드래그로 코드를 자세히 봅니다. |
+| **일시정지** | 시청 화면을 잠깐 멈추고, 재생하면 실시간으로 돌아갑니다. |
+| **스크린샷** | 원본 해상도의 PNG로 저장합니다. 도구 모음은 포함되지 않습니다. |
+| **로컬 녹화** | 수신 영상과 오디오를 녹화하고 WebM 파일로 저장합니다. 지원 환경에서는 MP4로 대체합니다. |
+| **내 수업 링크** | 확장 팝업에서 링크를 저장하고 바로 회의를 엽니다. |
+| **같은 컴퓨터 안에서** | `127.0.0.1` 서버가 플레이어와 연결 정보를 제공합니다. 외부 중계 서버는 없습니다. |
 
-> **Experimental:** manual relay playback was verified at 1920 × 1080 in Chrome and cmux on macOS. Automatic extension injection into a live Whale ON meeting still needs verification. Windows launch support is implemented; live Windows video playback is not yet verified.
+> **개발 버전입니다.** macOS의 Chrome·cmux에서 수동 중계 1080p 재생을 확인했습니다. 실제 회의 창의 확장 자동 주입·재연결, Windows 및 Wave 안에서의 영상 재생·녹화는 별도 확인이 필요합니다.
 
-## Quick start
+## 추천 환경: Wave Terminal
 
-You need **Whale**, **Python 3.9+**, and a receiving browser on the **same computer**. Keep Whale open while watching. There are no Python packages to install.
+**강의 영상과 실습 터미널을 나란히 배치하려면 [Wave Terminal](https://www.waveterm.dev/)**을 추천합니다. Windows와 macOS에서 터미널과 웹 위젯을 함께 배치할 수 있습니다. 사용 흐름에 대한 추천이며, 이 프로젝트의 Wave 내 재생·녹화 호환성을 검증했다는 의미는 아닙니다.
 
-### 1 · Get the project
+1. **[Wave 공식 다운로드](https://www.waveterm.dev/download)**에서 설치합니다.
+   - **Windows:** Windows용 설치 파일을 선택합니다.
+   - **macOS:** Apple Silicon 또는 Intel용 파일을 선택합니다. Homebrew 사용자는 `brew install --cask wave`로 설치할 수 있습니다.
+2. Wave에서 **로컬 PowerShell**(Windows) 또는 **zsh**(macOS) 터미널을 열고 아래 실행 명령을 사용합니다. 이 서버는 SSH·WSL 안이 아니라 브라우저와 같은 컴퓨터에서 실행하세요.
+3. **Web 위젯**을 추가하고 `http://127.0.0.1:18745/`를 입력한 다음 터미널 옆에 배치합니다. [공식 웹 위젯 안내](https://docs.waveterm.dev/customwidgets)
+4. 내장 웹 위젯에서 영상이나 다운로드가 동작하지 않으면 같은 주소를 **Chrome**에서 여세요. 녹화의 우선 대상 브라우저는 Chrome이며 Wave 설치는 선택 사항입니다.
+
+## 빠른 시작
+
+**Whale · Python 3.9 이상 · 같은 컴퓨터의 수신 브라우저**가 필요합니다. Python 패키지를 별도로 설치할 필요는 없습니다. 시청 중에는 Whale과 회의를 계속 열어두세요.
+
+### 1 · 프로젝트 받기
 
 ```sh
 git clone https://github.com/snowflake-rider/whale-on-relay.git
 cd whale-on-relay
 ```
 
-Or use **Code → Download ZIP**, then extract the archive.
+Git을 사용하지 않으면 **Code → Download ZIP**으로 내려받아 압축을 풉니다.
 
-### 2 · Install the Whale extension
+### 2 · Whale 확장 설치
 
-1. Open `whale://extensions` in Whale.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose this project's **`extension`** folder, which contains `manifest.json`.
-5. Confirm **Whale Local Relay** is enabled. Reopen a meeting that was already running when you installed the extension.
+1. Whale 주소창에 `whale://extensions`를 입력합니다.
+2. **개발자 모드 / Developer mode**를 켭니다.
+3. **압축해제된 확장앱 설치 / Load unpacked**를 선택합니다.
+4. 이 프로젝트의 **`extension` 폴더**를 선택합니다. `manifest.json`이 들어 있는 폴더입니다.
+5. **Whale Local Relay**가 활성화됐는지 확인합니다. 설치 전에 열려 있던 회의는 다시 입장하세요.
 
-### 3 · Set your class link in the extension
+### 3 · 확장에서 수업 링크 저장
 
-Click **Whale Local Relay** in Whale's extensions menu (pin it for easy access). Paste your invitation link, select **Save link**, then **Open class**. The link stays in this browser's local extension storage; it is not bundled with the project or synced to your account.
+Whale 확장 메뉴에서 **Whale Local Relay**를 클릭합니다. 자주 사용하면 도구 모음에 고정하세요.
 
-### 4 · Start the local server
+**수업 초대 링크 붙여넣기 → Save link → Open class**
+
+링크는 해당 브라우저의 로컬 확장 저장소에만 저장됩니다. 계정 동기화나 공개 저장소에 포함되지 않습니다. 확장의 **Copy player address** 버튼으로 시청 주소도 복사할 수 있습니다.
+
+### 4 · 서버 실행 후 시청
 
 **Windows · PowerShell**
 
@@ -67,35 +85,33 @@ Click **Whale Local Relay** in Whale's extensions menu (pin it for easy access).
 .\cls-whale.ps1 --no-open
 ```
 
-**macOS · Terminal**
+**macOS · 터미널**
 
 ```sh
 python3 launch.py --no-open
 ```
 
-Join the meeting in Whale, then paste the printed address into your receiving browser. The extension also has a **Copy player address** button.
+출력되는 주소를 Chrome 또는 Wave의 Web 위젯에 붙여 넣으세요.
 
 ```text
 http://127.0.0.1:18745/
 ```
 
-**A healthy server is not proof of a connected video stream.** The extension must be running in the actual meeting window; look for its small relay indicator. The receiving browser is not opened automatically. The extension saves and opens your class link; the local Python server still needs the command above.
-
-Prefer opening the class from the terminal too? Pass `--meeting 'https://whaleon.us/o/YOUR-LINK'` instead of `--no-open`, or use the optional shortcut below. The CLI and the extension keep their settings separately.
+서버가 켜졌다는 확인과 영상 연결 완료는 다릅니다. Whale 회의에 입장하고 회의 창의 작은 **로컬 중계 표시**를 확인하세요. 확장은 Python 서버를 직접 실행하지 않으므로 위 명령이 필요합니다.
 
 <details>
-<summary><strong>Make it a daily one-command shortcut</strong></summary>
+<summary><strong>매번 cls-whale 한 명령으로 실행하기</strong></summary>
 
 #### Windows PowerShell
 
-Open your PowerShell profile with `notepad $PROFILE`. If it does not exist, create it first:
+`notepad $PROFILE`로 프로필을 열고 아래 함수를 추가합니다. 경로와 링크를 실제 값으로 바꾸세요. 프로필 파일이 없으면 먼저 아래 두 명령으로 만듭니다.
 
 ```powershell
 New-Item -ItemType Directory -Force (Split-Path $PROFILE)
 New-Item -ItemType File $PROFILE
 ```
 
-Add this function, using your actual project path and meeting link:
+프로필에 추가할 내용:
 
 ```powershell
 function cls-whale {
@@ -104,7 +120,7 @@ function cls-whale {
 }
 ```
 
-Save, run `. $PROFILE`, then use:
+저장 후 `. $PROFILE`을 실행합니다.
 
 ```powershell
 cls-whale
@@ -113,7 +129,7 @@ cls-whale | Set-Clipboard
 
 #### macOS zsh
 
-Add this function to `~/.zshrc`, replacing the path and link:
+`~/.zshrc`에 실제 경로와 수업 링크를 넣은 함수를 추가합니다.
 
 ```zsh
 cls-whale() {
@@ -122,111 +138,126 @@ cls-whale() {
 }
 ```
 
-Save, run `source ~/.zshrc`, then use:
+저장 후 `source ~/.zshrc`를 실행합니다.
 
 ```zsh
 cls-whale
 cls-whale | pbcopy
 ```
 
-The server runs in the background. Run the command again after restarting your computer.
+이 방식은 서버를 준비하고 Whale에서 수업 링크를 연 다음 주소를 출력합니다. 확장에 저장한 링크와 CLI 설정은 서로 별개입니다. 확장에서 회의를 열었다면 `--no-open`만 사용해도 됩니다.
 
 </details>
 
 <details>
-<summary><strong>Options, custom Whale location, and login startup</strong></summary>
+<summary><strong>실행 옵션 · Whale 위치 · 로그인 자동 실행</strong></summary>
 
-| Option | Behavior |
+| 옵션 | 동작 |
 | :--- | :--- |
-| `--meeting URL` | Open this invitation link in Whale. Overrides `WHALE_MEETING_URL`. |
-| `--no-open` | Prepare the server and print the address without opening Whale. No meeting URL required. |
-| `--check` | Check an existing server and print its address. Start nothing. |
+| `--meeting URL` | 지정한 수업 링크를 Whale에서 엽니다. `WHALE_MEETING_URL`보다 우선합니다. |
+| `--no-open` | 서버만 준비하고 주소를 출력합니다. 수업 링크가 필요 없습니다. |
+| `--check` | 실행 중인 서버를 확인하고 주소만 출력합니다. 서버나 브라우저를 시작하지 않습니다. |
 
-Already in your meeting? Use `--no-open`.
-
-On Windows, the launcher searches PATH and common per-user/system Whale installation folders. For a custom installation:
+Windows에서는 PATH와 일반적인 Whale 설치 폴더를 찾습니다. 사용자 지정 경로라면:
 
 ```powershell
 $env:WHALE_PATH = 'D:\Apps\Whale\Application\whale.exe'
-.\cls-whale.ps1 --meeting 'https://whaleon.us/o/YOUR-LINK'
+.\cls-whale.ps1 --no-open
 ```
 
-**Optional macOS login startup:** run `python3 setup_auto.py install` or double-click `setup.command`. To remove it, run `python3 setup_auto.py uninstall` or double-click `stop-auto.command`. Reinstall after moving the project. Windows login startup is not provided.
+터미널을 닫아도 서버가 유지되도록 구현했습니다. PC 재시작 후에는 명령을 다시 실행하세요. **Windows 로그인 자동 실행은 제공하지 않습니다.**
+
+macOS에서 로그인 자동 실행을 원하면 `python3 setup_auto.py install` 또는 `setup.command`를 실행합니다. 제거는 `python3 setup_auto.py uninstall` 또는 `stop-auto.command`입니다. 폴더를 옮기면 다시 설정하세요.
 
 </details>
 
-## Player controls
+## 플레이어 조작
 
-| Control | Shortcut / gesture |
+| 기능 | 키보드 / 마우스 |
 | :--- | :--- |
-| Play / pause | `Space` |
-| Zoom in / out | `+` / `−`, wheel, or pinch |
-| Move a zoomed image | Drag |
-| Fit to window | `0` or the scale button |
-| Save screenshot | `S` |
-| Full screen | `F` |
-| Sound | ♪ — muted by default |
-| Stop / reconnect | ■ |
+| 재생 / 일시정지 | `Space` |
+| 확대 / 축소 | `+` / `−`, 휠 또는 핀치 |
+| 확대된 화면 이동 | 드래그 |
+| 화면에 맞춤 | `0` 또는 배율 버튼 |
+| 스크린샷 저장 | `S` |
+| 녹화 시작 / 중지·저장 | `R` 또는 ● / ■ |
+| 마지막 녹화 다시 저장 | 녹화 종료 후 표시되는 ↓ |
+| 전체 화면 | `F` |
+| 소리 | ♪ — 기본 음소거 |
+| 중계 종료 / 재연결 | ■ 중계 버튼 |
 
-Pausing freezes your local view. Resuming returns to live video; there is no DVR or rewind. Enable sound in either Whale or the player to avoid hearing both.
+시청 화면의 일시정지는 되감기가 아닙니다. 다시 재생하면 실시간 영상으로 돌아갑니다. 소리는 Whale과 플레이어 중 한쪽만 켜서 중복 재생을 피하세요.
 
-## How it works
+## 녹화
+
+영상이 연결된 뒤 오른쪽 **●** 또는 **R**을 누릅니다. 녹화 중에는 빨간 표시와 경과 시간이 보입니다. 다시 누르면 녹화를 끝내고 파일 다운로드를 요청합니다. 자동 다운로드가 막히면 **↓**로 다시 저장하세요.
+
+- **수신 원본 영상**을 녹화합니다. 플레이어의 확대·이동·도구 모음은 들어가지 않습니다.
+- 시작 시 존재하는 **오디오 트랙을 하나로 합쳐 녹음**합니다. 재생 음소거나 시청 일시정지는 녹화에 영향을 주지 않습니다. 마이크·화면 캡처 권한은 요청하지 않습니다.
+- 브라우저가 지원하는 형식을 확인해 **WebM을 우선 사용**하고, 필요하면 지원되는 MP4로 대체합니다. Windows Chrome에서도 브라우저 녹화 API를 사용하므로 FFmpeg 설치는 필요 없습니다. [MediaRecorder 안내](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
+- 데이터를 메모리에 모으므로 **약 256 MiB에서 자동 중지·저장**합니다. 한도는 청크가 들어올 때 확인합니다. 다음 구간은 새 녹화를 시작하세요. 무제한 장시간 녹화는 아닙니다.
+- 영상·오디오 트랙이 끊기거나 바뀌면 현재 녹화를 마무리합니다. 재연결 후 새 녹화를 시작하세요.
+- **탭을 닫거나 새로고침하기 전에 중지·저장하세요.** 녹화 중 이탈 경고를 요청하지만 강제 종료·브라우저 충돌 시 저장 전 데이터가 사라질 수 있습니다. 마지막 파일 링크는 다음 녹화 완료 또는 페이지 종료까지 유지됩니다.
+
+Windows 및 Wave 안에서의 실제 녹화·오디오·다운로드는 기기 확인이 필요합니다. 자동 테스트로는 오디오 혼합, 마지막 청크 저장, 연결 변경, 용량 한도와 원본 트랙 보존을 점검합니다.
+
+## 동작 구조
 
 ```mermaid
 flowchart LR
-    A[Whale ON meeting] -->|Cloned media tracks| B[Whale extension]
-    B <-->|Local signaling| C[Python · 127.0.0.1:18745]
-    C <-->|Local signaling| D[Chrome / cmux player]
-    B ==>|WebRTC media| D
+    A[Whale ON 회의] -->|트랙 복제| B[Whale 확장]
+    B <-->|연결 정보| C[Python · 127.0.0.1:18745]
+    C <-->|연결 정보| D[수신 플레이어]
+    B ==>|WebRTC 영상·오디오| D
+    D -->|사용자가 녹화 시작| E[로컬 녹화 파일]
 ```
 
-The extension runs on `one.whaleon.naver.com`. It clones the meeting's existing media tracks and connects them to the receiver through WebRTC. Python serves the player and exchanges connection messages; it does not record the video. No external ICE servers are configured.
+확장은 `one.whaleon.naver.com`에서 회의의 미디어 트랙을 복제합니다. Python은 플레이어와 연결 정보를 제공하며 영상을 녹화하지 않습니다. **녹화는 수신 브라우저에서 사용자가 시작할 때만** 수행합니다. 외부 ICE 서버를 설정하지 않습니다.
 
-This is a relay of an **active Whale meeting**, not a standalone HLS URL or a replacement for joining the meeting in Whale. The content script runs only on the configured Whale ON site. The popup uses the `storage` permission to remember your class link locally. This is an independent project, not an official NAVER product.
+독립 HLS 주소를 추출하는 기능은 아닙니다. Whale에서 실제 회의에 입장해야 합니다. 수업 링크 저장에는 확장의 `storage` 권한을 사용합니다. NAVER의 공식 제품이 아닌 독립 프로젝트입니다.
 
-## Troubleshooting
+## 문제 해결
 
-| Symptom | Try this |
+| 증상 | 확인할 내용 |
 | :--- | :--- |
-| PowerShell blocks the script | Run `py -3 .\launch.py --meeting 'https://whaleon.us/o/YOUR-LINK'` directly. If `py` is unavailable, use `python`. |
-| Python is missing | Install Python 3.9+ and reopen your terminal. Check `py -3 --version` or `python3 --version`. |
-| Whale cannot be found on Windows | Set `WHALE_PATH` as shown above, or use `--no-open` and open the meeting yourself. |
-| No relay indicator | Check that the extension is enabled and rejoin the meeting. If injection fails, use the manual fallback below. |
-| Waiting for shared video | The presenter must start video or screen sharing. |
-| Cannot connect to the local server | Rerun the launcher. Check [server health](http://127.0.0.1:18745/health); startup logs are in `.runtime/launcher-server.log`. |
-| Port already in use | Identify the service using port 18745. The launcher rejects an unrelated service instead of terminating it. |
+| PowerShell이 스크립트를 차단함 | `py -3 .\launch.py --no-open`으로 직접 실행하세요. `py`가 없으면 `python`을 사용합니다. |
+| Python을 찾지 못함 | Python 3.9 이상 설치 후 터미널을 다시 엽니다. `py -3 --version` 또는 `python3 --version`으로 확인합니다. |
+| Whale을 찾지 못함 | `WHALE_PATH`를 설정하거나 `--no-open`으로 실행하고 확장에서 회의를 엽니다. |
+| 로컬 중계 표시가 없음 | 확장을 활성화하고 회의에 다시 입장합니다. 자동 주입이 안 되면 아래 수동 방식을 사용합니다. |
+| 공유 영상 대기 | 발표자가 영상 또는 화면 공유를 시작해야 합니다. |
+| 서버 연결 실패 | 실행 명령을 다시 사용하고 [서버 상태](http://127.0.0.1:18745/health)를 확인합니다. 로그는 `.runtime/launcher-server.log`에 있습니다. |
+| 포트 사용 중 | 18745를 사용하는 서비스를 확인하세요. 실행기는 다른 서비스를 임의로 종료하지 않습니다. |
+| Wave에서 저장이 안 됨 | Chrome에서 같은 주소를 열어 녹화하세요. 완료된 파일은 ↓로 다시 다운로드할 수 있습니다. |
 
-For personal Windows machines, `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` permits local scripts and profiles. Downloaded scripts may also need `Unblock-File .\cls-whale.ps1` after you review them. Follow your organization's policy on managed machines. See [Microsoft's execution policy guide](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies).
+개인 Windows PC에서 프로필·스크립트를 허용하려면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`를 사용할 수 있습니다. 다운로드한 스크립트는 내용을 확인한 뒤 `Unblock-File .\cls-whale.ps1`이 필요할 수 있습니다. 관리 PC는 조직 정책을 따르세요. [Microsoft 실행 정책 안내](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies)
 
 <details>
-<summary><strong>Manual fallback — when the extension cannot reach the meeting window</strong></summary>
+<summary><strong>수동 중계 — 확장이 회의 창에서 동작하지 않을 때</strong></summary>
 
-1. Start the manual server and keep its terminal open:
-   - Windows: `py -3 .\relay_server.py`
-   - macOS: `python3 relay_server.py`, or double-click `start.command`.
-2. Copy all of `sender.js`.
-3. Open developer tools in the **actual Whale meeting window**: `Ctrl+Shift+I` on Windows or `⌘⌥I` on macOS. Run the code in **Console**.
-4. When `LOCAL_RELAY_READY` appears, open `http://127.0.0.1:18744/` in the receiving browser.
+1. Windows는 `py -3 .\relay_server.py`, macOS는 `python3 relay_server.py` 또는 `start.command`를 실행하고 터미널을 켜둡니다.
+2. `sender.js` 전체를 복사합니다.
+3. **실제 Whale 회의 창**에서 Windows `Ctrl+Shift+I` 또는 macOS `⌘⌥I`로 개발자 도구를 열고 Console에서 실행합니다.
+4. `LOCAL_RELAY_READY`가 나오면 수신 브라우저에서 `http://127.0.0.1:18744/`를 엽니다.
 
-Manual relay uses **18744**; extension relay uses **18745**. Use one receiving tab for the manual relay. To reconnect: close that tab, rerun `sender.js`, then reopen the player. Stop the manual server with `Ctrl+C`.
+수동 중계는 **18744**, 확장 중계는 **18745**입니다. 수동 중계는 수신 탭 하나만 사용하세요. 재연결은 수신 탭 닫기 → `sender.js` 재실행 → 플레이어 다시 열기 순서입니다. 수동 서버 종료는 `Ctrl+C`입니다.
 
 </details>
 
-## Development & verification
+## 개발과 검증 범위
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs
 ```
 
-On Windows, replace `python3` with `py -3`. Node.js is needed only for the extension tests. After editing `player-ui.js` or `player-ui.css`, run `python3 build_player_ui.py` to update both player HTML files.
+Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScript 테스트에만 필요합니다. `recording.js`, `player-ui.js`, `player-ui.css`를 수정한 뒤 **`python3 build_player_ui.py`**로 두 플레이어 HTML을 갱신하세요.
 
-| Area | Verification boundary |
+| 항목 | 확인 범위 |
 | :--- | :--- |
-| Manual relay | Chrome and cmux 1080p playback verified on macOS. |
-| Player controls | Synthetic-video zoom, pan, pause/resume, and 1080p PNG export verified. |
-| Launcher | Unit tests cover path discovery, detached-process flags, server reuse, URL-only output, and macOS launch behavior. |
-| Extension | Mock tests cover track cloning, receiver isolation, and stopping without ending original meeting tracks. |
-| Still to verify | Live extension injection/reconnection, live Windows playback, Windows terminal-close behavior, macOS login startup, physical pinch gestures, and cmux screenshot downloads. |
+| 수동 중계 | macOS Chrome·cmux 1080p 재생 확인 |
+| 플레이어 | 테스트 영상의 확대·이동·일시정지·PNG 저장 확인 |
+| 실행기·확장 | 경로 탐색, 서버 재사용, 트랙 복제·보존, 수업 링크 저장·검증 테스트 |
+| 녹화 | macOS Chrome 합성 영상에서 640×360 VP8 + Opus WebM 생성·파일 검사 완료. 로직 테스트로 마지막 청크·오디오 혼합·연결 변경·메모리 한도·원본 트랙 보존 점검 |
+| 추가 기기 확인 | 실제 회의 확장 자동 주입·재연결, Windows·Wave 재생·녹화·다운로드, 로그인 자동 실행, 핀치 |
 
-Use one Whale meeting at a time. The project has no bundled meeting link. Save your own link in the extension, or use local shell configuration for the optional CLI shortcut.
+한 번에 Whale 회의 하나를 사용하세요. 개인 수업 링크는 확장 또는 로컬 셸 설정에 저장하며 프로젝트에는 포함하지 않습니다.

@@ -19,6 +19,30 @@ function installRelayUI(video, getAudios) {
     const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;
     try{c.getContext('2d').drawImage(video,0,0);c.toBlob(blob=>{if(!blob){notify('스크린샷을 만들지 못했습니다');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);notify('원본 해상도 PNG 저장');},'image/png');}catch(e){notify('캡처 실패: '+e.message);}
   });
+  let recordingURL;
+  const record = add('record','●','녹화 시작/중지 (R)',()=>{
+    if(recorder.active) recorder.stop();
+    else recorder.start().catch(e=>notify(e.message));
+  });
+  record.setAttribute('aria-pressed','false');
+  const recordingLabel=document.createElement('span');recordingLabel.id='recording-time';tools.append(recordingLabel);
+  const download=document.createElement('a');download.id='recording-download';download.textContent='↓';download.title='마지막 녹화 다시 저장';download.setAttribute('aria-label',download.title);download.hidden=true;tools.append(download);
+  const recorder=createRelayRecorder(video,getAudios,{
+    onState(state){
+      const busy=state.status==='starting'||state.status==='saving';
+      record.disabled=busy;record.classList.toggle('recording',state.status==='recording');record.setAttribute('aria-pressed',String(state.status==='recording'));
+      record.textContent=state.status==='recording'?'■':'●';
+      recordingLabel.textContent=state.status==='recording'?Math.floor(state.seconds/60)+':'+String(state.seconds%60).padStart(2,'0'):busy?'…':'';
+      if(state.status==='recording'&&state.seconds===0)notify(state.audio?'녹화 시작 · 재생 음소거와 무관하게 오디오 포함':'녹화 시작 · 현재 오디오 트랙 없음');
+    },
+    onFile(blob,extension,reason){
+      if(recordingURL)URL.revokeObjectURL(recordingURL);
+      recordingURL=URL.createObjectURL(blob);download.href=recordingURL;download.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+extension;download.hidden=false;download.click();
+      notify(reason||'녹화 다운로드 요청 · ↓ 버튼으로 다시 저장 가능');
+    },
+    onError:notify
+  });
+  addEventListener('beforeunload',e=>{if(recorder.active){e.preventDefault();e.returnValue='';}});
   for(const [id,title] of [['sound','소리 켜기/끄기'],['full','전체 화면 (F)'],['stop','중계 끊기/다시 연결']]){const b=document.getElementById(id);if(b){b.title=title;b.setAttribute('aria-label',title);tools.append(b);}}
   document.querySelector('#sound')?.addEventListener('click',()=>{if(video.paused)getAudios().forEach(a=>a.pause());});
   const full=document.querySelector('#full');if(full)full.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>notify('전체 화면을 사용할 수 없습니다'));else video.webkitEnterFullscreen?.();};
@@ -38,6 +62,6 @@ function installRelayUI(video, getAudios) {
   const sync=()=>{play.textContent=video.paused?'▶':'Ⅱ';play.title=video.paused?'재생 (Space)':'일시정지 (Space)';play.setAttribute('aria-label',play.title);getAudios().forEach(a=>{if(video.paused)a.pause();else a.play().catch(()=>{});});};
   video.addEventListener('pause',sync);video.addEventListener('play',sync);video.addEventListener('resize',render);addEventListener('resize',render);
   const status=document.getElementById('status');if(status)new MutationObserver(()=>{if(!status.textContent.startsWith('영상 재생'))notify(status.textContent);}).observe(status,{childList:true,subtree:true,characterData:true});
-  document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){e.preventDefault();play.click();}else if(k==='+'||k==='=')zoom(scale*1.25);else if(k==='-')zoom(scale/1.25);else if(k==='0')reset.click();else if(k==='s')document.querySelector('#snapshot').click();else if(k==='f')full?.click();});
+  document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();if(k===' '){e.preventDefault();play.click();}else if(k==='+'||k==='=')zoom(scale*1.25);else if(k==='-')zoom(scale/1.25);else if(k==='0')reset.click();else if(k==='s')document.querySelector('#snapshot').click();else if(k==='f')full?.click();else if(k==='r')record.click();});
   sync();render();notify('휠·핀치로 확대 · 드래그로 이동 · 0으로 화면 맞춤');
 }
