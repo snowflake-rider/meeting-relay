@@ -28,7 +28,7 @@ function createRelayRecorder(video, getAudios, callbacks) {
     if (typeof MediaRecorder === 'undefined') throw new Error('이 브라우저는 녹화를 지원하지 않습니다. Chrome을 사용하세요.');
     const originals = tracks();
     if (!originals.some(t => t.kind === 'video')) throw new Error('영상이 연결된 뒤 녹화를 시작하세요.');
-    const s = {originals, clones: [], nodes: [], chunks: [], bytes: 0, stopping: false};
+    const s = {originals, clones: [], nodes: [], queue: Promise.resolve(), pending: 0, bytes: 0, stopping: false};
     active = s;
     update({status: 'starting'});
     try {
@@ -52,23 +52,46 @@ function createRelayRecorder(video, getAudios, callbacks) {
         if (s.context.state !== 'running') throw new Error('오디오 녹화를 시작하지 못했습니다. 다시 시도하세요.');
       }
       if (s.stopping) { cleanup(s); update({status: 'idle'}); return; }
-      const types = audio.length ? ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+      const types = audio.length ? ['video/webm;codecs=vp8,opus', 'video/webm'] : ['video/webm;codecs=vp8', 'video/webm'];
       const mimeType = types.find(type => MediaRecorder.isTypeSupported(type));
       if (!mimeType) throw new Error('지원되는 녹화 형식이 없습니다. Chrome을 사용하세요.');
+      s.upload = await createDiskUpload(mimeType);
+      if (s.stopping) { await s.upload.abort(); cleanup(s); update({status:'idle'}); return; }
       s.recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond: 5000000});
       s.recorder.ondataavailable = event => {
-        if (!event.data.size) return;
-        s.chunks.push(event.data); s.bytes += event.data.size;
-        if (s.bytes >= 256 * 1024 * 1024) stop('256 MB 한도에 도달해 자동 저장했습니다. 새 녹화를 시작할 수 있습니다.');
+        if (!event.data.size || s.uploadError) return;
+        s.pending += event.data.size; s.bytes += event.data.size;
+        s.queue = s.queue.then(async()=>{
+          if(s.uploadError)return;
+          try{await s.upload.append(event.data);}
+          catch(error){s.uploadError=error;stop('디스크 저장이 중단되었습니다.');}
+          finally{s.pending-=event.data.size;}
+        });
+        if(s.pending>32*1024*1024)stop('디스크 저장 지연으로 녹화를 중지하고 남은 데이터를 저장합니다.');
       };
       s.recorder.onerror = event => { s.reason = '녹화 오류: ' + (event.error?.message || '브라우저 오류'); stop(s.reason); };
-      s.recorder.onstop = () => {
-        const blob = new Blob(s.chunks, {type: s.recorder.mimeType || mimeType});
-        s.chunks = [];
-        cleanup(s);
-        update({status: 'idle'});
-        if (blob.size) callbacks.onFile(blob, blob.type.startsWith('video/mp4') ? 'mp4' : 'webm', s.reason);
-        else callbacks.onError(s.reason || '저장할 녹화 데이터가 없습니다.');
+      s.recorder.onstop = async () => {
+        clearInterval(s.timer);
+        update({status:'saving'});
+        let finalized=false;
+        try{
+          await s.queue;
+          if(s.uploadError)throw s.uploadError;
+          const job=await s.upload.finish();
+          cleanup(s);update({status:'idle'});finalized=true;
+          callbacks.onFile({...job,webm:true},s.reason);
+          if(job.state==='converting'){
+            let state=job;
+            while(state.state==='converting'){
+              await new Promise(r=>setTimeout(r,2000));state=await s.upload.status();
+            }
+            callbacks.onFile(state,s.reason,true);
+          }
+        }catch(error){
+          if(finalized){callbacks.onError('변환 상태를 확인하지 못했습니다. ⚙에서 파일을 확인하세요.');return;}
+          await s.upload.abort().catch(()=>{});cleanup(s);update({status:'idle'});
+          callbacks.onError(error.message+' · 녹화 설정의 파일 목록에서 저장된 데이터를 확인하세요.');
+        }
       };
       s.recorder.start(1000);
       s.started = Date.now();
@@ -80,9 +103,10 @@ function createRelayRecorder(video, getAudios, callbacks) {
           stop('영상·오디오 연결이 바뀌어 녹화를 저장했습니다. 다시 연결되면 새 녹화를 시작하세요.');
           return;
         }
-        update({status: 'recording', seconds: Math.floor((Date.now() - s.started) / 1000), audio: Boolean(audio.length)});
+        update({status: 'recording', seconds: Math.floor((Date.now() - s.started) / 1000), bytes:s.bytes, audio: Boolean(audio.length)});
       }, 500);
-    } catch (error) { cleanup(s); update({status: 'idle'}); throw error; }
+    } catch (error) { if(s.upload)await s.upload.abort().catch(()=>{}); cleanup(s); update({status: 'idle'}); throw error; }
   }
+  globalThis.addEventListener?.('pagehide',()=>{active?.upload?.abort().catch(()=>{});});
   return {start, stop, get active() { return Boolean(active); }};
 }

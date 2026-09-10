@@ -1,6 +1,7 @@
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-import json, threading
+import json, threading, os
+from recording_http import attach_recordings, handle_recordings
 
 ROOT = Path(__file__).parent
 messages = {'sender': [], 'receiver': []}
@@ -17,9 +18,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.send_header('Access-Control-Allow-Private-Network', 'true')
         self.send_header('Cache-Control', 'no-store')
+        if self.path.startswith('/recording'):
+            self.send_header('Content-Security-Policy', "frame-ancestors 'self' chrome-extension:;")
         self.end_headers()
+    def reply(self, value, status=200, content_type='application/json'):
+        self.headers_out(status, content_type)
+        self.wfile.write(value if isinstance(value, bytes) else json.dumps(value).encode())
     def do_OPTIONS(self): self.headers_out()
     def do_GET(self):
+        if handle_recordings(self, 'GET', ROOT): return
         route = self.path.split('?')[0]
         if route == '/':
             self.headers_out(content_type='text/html; charset=utf-8')
@@ -33,6 +40,7 @@ class Handler(BaseHTTPRequestHandler):
             self.headers_out(); self.wfile.write(b'{"ok":true}')
         else: self.headers_out(404)
     def do_POST(self):
+        if handle_recordings(self, 'POST', ROOT): return
         if self.headers.get('Origin', '') not in ('https://one.whaleon.naver.com', 'http://127.0.0.1:18744'):
             self.headers_out(403); return
         if self.path == '/reset':
@@ -49,4 +57,6 @@ class Handler(BaseHTTPRequestHandler):
         with lock: messages[role].append(item)
         self.headers_out(); self.wfile.write(b'{}')
 print('Chrome player: http://127.0.0.1:18744/ — Stop server with Ctrl+C', flush=True)
-ThreadingHTTPServer(('127.0.0.1', 18744), Handler).serve_forever()
+server = ThreadingHTTPServer(('127.0.0.1', 18744), Handler)
+attach_recordings(server, os.environ.get('RELAY_RECORDINGS_DIR', str(ROOT / '.runtime' / 'recordings-manual')))
+server.serve_forever()

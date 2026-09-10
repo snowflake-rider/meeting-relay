@@ -3,6 +3,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from collections import deque
 from urllib.parse import urlsplit, parse_qs
+import os
+from recording_http import attach_recordings, handle_recordings
 import argparse
 import json
 import re
@@ -30,10 +32,12 @@ class Handler(BaseHTTPRequestHandler):
         if origin in self.origins():
             self.send_header('Access-Control-Allow-Origin', origin)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Recording-Token')
         self.send_header('Access-Control-Allow-Private-Network', 'true')
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
+        if self.path.startswith('/recording'):
+            self.send_header('Content-Security-Policy', "frame-ancestors 'self' chrome-extension:;")
         self.end_headers()
         self.wfile.write(value if isinstance(value, bytes) else json.dumps(value).encode())
 
@@ -44,6 +48,7 @@ class Handler(BaseHTTPRequestHandler):
         self.reply({}, 200 if self.allowed() else 403)
 
     def do_GET(self):
+        if handle_recordings(self, 'GET', ROOT): return
         if not self.allowed():
             self.reply({}, 403); return
         url = urlsplit(self.path)
@@ -56,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
             name, mime = names[url.path]
             self.reply((ROOT / name).read_bytes(), content_type=mime)
         elif url.path == '/health':
-            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture']})
+            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture', 'disk-recording']})
         elif url.path == '/poll':
             query = parse_qs(url.query)
             channel = query.get('channel', ['whale'])[0]
@@ -72,6 +77,7 @@ class Handler(BaseHTTPRequestHandler):
             self.reply({}, 404)
 
     def do_POST(self):
+        if handle_recordings(self, 'POST', ROOT): return
         if not self.allowed() or self.headers.get('Origin') not in self.origins():
             self.reply({}, 403); return
         try:
@@ -105,4 +111,6 @@ if __name__ == '__main__':
     if not 1024 <= args.port <= 65535:
         parser.error('port must be between 1024 and 65535')
     print(f'Local Relay: http://127.0.0.1:{args.port}/', flush=True)
-    ThreadingHTTPServer(('127.0.0.1', args.port), Handler).serve_forever()
+    server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
+    attach_recordings(server, os.environ.get('RELAY_RECORDINGS_DIR', str(ROOT / '.runtime' / 'recordings')))
+    server.serve_forever()

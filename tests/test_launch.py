@@ -1,6 +1,7 @@
 import contextlib
 import importlib.util
 import io
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -50,6 +51,12 @@ class LauncherTests(unittest.TestCase):
             ensure.assert_called_once()
             browser.assert_not_called()
         self.assertEqual(output.getvalue(), launch.PLAYER + '\n')
+
+    def test_old_server_requires_separate_port(self):
+        body = json.dumps({'app':'whale-auto-relay','version':2,'ok':True,'features':['meet-tab-capture']}).encode()
+        with patch.object(launch, 'urlopen', return_value=io.BytesIO(body)):
+            with self.assertRaisesRegex(RuntimeError, '18749'):
+                launch.ready()
 
     def test_mac_open_unchanged(self):
         with patch.object(launch.sys, 'platform', 'darwin'), patch.object(launch.subprocess, 'run') as run:

@@ -98,18 +98,40 @@ macOS에서 로그인 자동 실행을 원하면 `python3 setup_auto.py install`
 
 </details>
 
-## 녹화
+## 녹화 · 디스크 저장과 선택적 MP4
 
-영상이 연결된 뒤 오른쪽 **●** 또는 **R**을 누릅니다. 녹화 중에는 빨간 표시와 경과 시간이 보입니다. 다시 누르면 녹화를 끝내고 파일 다운로드를 요청합니다. 자동 다운로드가 막히면 **↓**로 다시 저장하세요.
+WebM이 기본입니다. 확장의 내장 설정 화면과 플레이어 ⚙는 같은 서버의 `/recording/settings`를 사용합니다. 별도 브라우저에서도 같은 포트에 연결하면 설정이 공유됩니다. 새로고침 시 서버 값을 읽으며 **녹화 시작 시 설정을 고정**합니다.
 
-- **수신 원본 영상**을 녹화합니다. 플레이어의 확대·이동·도구 모음은 들어가지 않습니다.
-- 시작 시 존재하는 **오디오 트랙을 하나로 합쳐 녹음**합니다. 재생 음소거나 시청 일시정지는 녹화에 영향을 주지 않습니다. 마이크·화면 캡처 권한은 요청하지 않습니다.
-- 브라우저가 지원하는 형식을 확인해 **WebM을 우선 사용**하고, 필요하면 지원되는 MP4로 대체합니다. Windows Chrome에서도 브라우저 녹화 API를 사용하므로 FFmpeg 설치는 필요 없습니다. [MediaRecorder 안내](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder)
-- 데이터를 메모리에 모으므로 **약 256 MiB에서 자동 중지·저장**합니다. 한도는 청크가 들어올 때 확인합니다. 다음 구간은 새 녹화를 시작하세요. 무제한 장시간 녹화는 아닙니다.
-- 영상·오디오 트랙이 끊기거나 바뀌면 현재 녹화를 마무리합니다. 재연결 후 새 녹화를 시작하세요.
-- **탭을 닫거나 새로고침하기 전에 중지·저장하세요.** 녹화 중 이탈 경고를 요청하지만 강제 종료·브라우저 충돌 시 저장 전 데이터가 사라질 수 있습니다. 마지막 파일 링크는 다음 녹화 완료 또는 페이지 종료까지 유지됩니다.
+1. 브라우저가 영상과 혼합 오디오를 WebM 청크로 만듭니다.
+2. 최대 4 MiB씩 순서 번호를 붙여 서버로 보내고, 디스크 저장 응답을 받은 청크를 메모리에서 해제합니다.
+3. 서버는 `.part` 파일에 기록합니다. 동일 순서·내용 재전송은 중복 기록하지 않습니다.
+4. 마지막 청크까지 받은 후 WebM을 완성합니다.
+5. MP4를 선택했다면 FFmpeg로 H.264/AAC 변환 후 전체 디코딩 검사를 거쳐 최종 파일을 공개합니다.
 
-Windows 및 Wave 안에서의 실제 녹화·오디오·다운로드는 기기 확인이 필요합니다. 자동 테스트로는 오디오 혼합, 마지막 청크 저장, 연결 변경, 용량 한도와 원본 트랙 보존을 점검합니다.
+총 파일 크기에 256 MiB 제한은 없습니다. 대신 **브라우저 저장 대기열이 약 32 MiB를 넘으면 녹화를 중지하고 남은 청크를 저장**합니다. 브라우저 자체의 청크 크기·내부 버퍼까지 엄격하게 제한하는 것은 아닙니다. 서버는 디스크 여유 공간이 부족하면 추가 기록을 거부합니다. 16GB 이상/장시간 실제 녹화는 아직 검증하지 않았습니다.
+
+### 저장 위치와 복구
+
+기본 위치는 `.runtime/recordings/<녹화 ID>/`이며, 수동 서버는 `.runtime/recordings-manual/`을 사용합니다. `RELAY_RECORDINGS_DIR` 환경 변수로 서버 시작 전에 위치를 바꿀 수 있습니다. 같은 디렉터리를 여러 서버 프로세스가 동시에 사용하지 마세요.
+
+- `source.webm.part`: 진행 중이거나 중단된 원본
+- `source.webm`: 정상 종료된 WebM 원본
+- `recording.mp4`: 변환·검사를 마친 MP4
+- `metadata.json`, `conversion.log`: 상태와 변환 오류 기록
+
+**성공한 경우에도 WebM을 보존합니다.** 따라서 WebM과 MP4 둘 다 보관할 디스크 공간이 필요합니다. 파일 목록은 재시작 후에도 복원되며 미완료 녹화는 `interrupted`로 표시됩니다. 미완료 파일의 재생 가능성이나 강제 종료 전 마지막 청크 복구를 보장하지 않습니다. 일반 `/tmp`가 아닌 위 저장 폴더를 사용합니다.
+
+### FFmpeg 설치
+
+macOS Homebrew: `brew install ffmpeg`. Windows는 [FFmpeg 공식 다운로드 안내](https://ffmpeg.org/download.html)에서 Windows 빌드를 선택하고 `ffmpeg.exe`를 PATH에 추가한 뒤 서버를 다시 실행하세요. `ffmpeg -version`으로 확인합니다. H.264 변환에는 `libx264`, 오디오에는 AAC 인코더가 필요합니다.
+
+FFmpeg가 없으면 설정 저장 시 안내하며 WebM은 계속 사용 가능합니다. 변환은 서버에서 한 번에 하나씩 실행합니다. 변환 실패 시 원본을 보존하고 파일 목록의 **MP4 변환**으로 재시도할 수 있습니다. 설정의 저장 디렉터리 경로에서 파일을 직접 열 수도 있습니다.
+
+### 보안·검증 범위
+
+녹화 API는 정확한 loopback Host와 같은 origin만 허용합니다. 쓰기에는 서버별 임의 토큰을 요구하고, 파일 경로는 서버가 생성한 ID로만 지정합니다. 확장은 localhost 설정 페이지를 프레임으로 표시하므로 추가 host 권한 없이 설정을 공유합니다. 로컬 컴퓨터의 다른 사용자/프로세스에 대한 인증 경계는 아닙니다.
+
+브라우저의 합성 영상으로 WebM·MP4 디스크 저장과 다운로드를 확인했습니다. FFmpeg 실제 변환 테스트는 H.264/AAC 출력을 검사합니다. 자동 테스트는 중복·순서, 설정 고정, 저장 실패, 재시작 복원과 원본 보존을 검사합니다. Windows 실제 녹화, 설치된 확장 내부 프레임, 장시간 녹화·강제 종료 복구는 추가 검증 대상입니다.
 
 ## 동작 구조
 
@@ -157,7 +179,7 @@ flowchart LR
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/capture.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs
 ```
 
 Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScript 테스트에만 필요합니다. `recording.js`, `player-ui.js`, `player-ui.css`를 수정한 뒤 **`python3 build_player_ui.py`**로 두 플레이어 HTML을 갱신하세요.

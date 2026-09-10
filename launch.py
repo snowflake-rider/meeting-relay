@@ -63,6 +63,8 @@ def ready():
         raise RuntimeError(f'{PORT}번 포트에서 중계 서버가 아닌 응답을 받았습니다.') from error
     if not isinstance(data, dict) or data.get('app') != 'whale-auto-relay' or data.get('version') != 2 or data.get('ok') is not True:
         raise RuntimeError(f'{PORT}번 포트의 서비스가 이 중계 서버와 일치하지 않습니다.')
+    if 'disk-recording' not in data.get('features', []):
+        raise RuntimeError('This port runs an older relay. Use --port 18749 for the recording feature, or restart the server from this project.')
     return True
 
 

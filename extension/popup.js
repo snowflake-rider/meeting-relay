@@ -18,6 +18,8 @@ function playerURL() {
 }
 function refreshAddress() { try { document.getElementById('player-address').textContent = playerURL(); } catch {} }
 portField.addEventListener('input', refreshAddress);
+function refreshRecordingSettings(){try{document.getElementById('recording-options').src=baseURL()+'recording-settings?embed=1';}catch{}}
+portField.addEventListener('change', refreshRecordingSettings);
 field.addEventListener('input', refreshAddress);
 function message(text, error = false) {
   status.textContent = text;
@@ -64,6 +66,6 @@ captureButton.addEventListener('click', async () => {
 field.disabled = openButton.disabled = saveButton.disabled = captureButton.disabled = portField.disabled = true;
 chrome.storage.local.get(['meetingURL', 'relayPort']).then(saved => {
   field.value = saved.meetingURL || '';
-  portField.value = saved.relayPort || 18745; refreshAddress();
+  portField.value = saved.relayPort || 18745; refreshAddress(); refreshRecordingSettings();
 }).catch(() => message('Could not load the saved link. Please enter it again.', true))
   .finally(() => { field.disabled = openButton.disabled = saveButton.disabled = captureButton.disabled = portField.disabled = false; });

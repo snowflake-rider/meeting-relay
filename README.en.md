@@ -12,6 +12,8 @@ Zoom · Screenshots · Recording · Windows / macOS
 
 </div>
 
+> **This guide is for `feature/recording-mp4`.** It includes disk-backed WebM recording and optional MP4 conversion.
+
 > **Google Meet support is experimental on `feature/google-meet`.** Synthetic relay tests passed; live Meet audio/video verification is pending. `main` retains the existing Whale version.
 
 ## Get started
@@ -19,7 +21,7 @@ Zoom · Screenshots · Recording · Windows / macOS
 Install **Python 3.9+** and **Chrome**. Install **Whale** too if you use Whale ON.
 
 ```sh
-git clone --branch feature/google-meet https://github.com/snowflake-rider/meeting-relay.git
+git clone --branch feature/recording-mp4 https://github.com/snowflake-rider/meeting-relay.git
 cd meeting-relay
 ```
 
@@ -85,7 +87,14 @@ python3 launch.py --no-open
 | Sound | Speaker button — muted by default |
 | Full screen | `F` |
 
-**Recording automatically stops and offers a download around 256 MiB.** Stop and save before closing the tab. Playback mute and pause do not mute or pause the recording.
+**Recordings stream directly to disk as WebM.** In the extension's recording settings or the player's **⚙**, enable **automatic MP4 conversion after recording**. Settings apply to the next recording.
+
+- WebM needs no extra installation. MP4 conversion requires **FFmpeg**.
+- WebM originals are retained, including on conversion failure. Use the ⚙ file list to retry conversion or download.
+- Files default to this project's `.runtime/recordings`. Preserve your recordings before deleting the project folder.
+- Stop recording before closing the tab. Playback mute and pause do not mute or pause the recording.
+
+For isolated testing, change the Meet command above to port **18749** and set the extension's **Local server port** to match. Settings: `http://127.0.0.1:18749/recording-settings`.
 
 ## Learn more
 

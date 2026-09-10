@@ -98,18 +98,40 @@ $env:WHALE_PATH = 'D:\Apps\Whale\Application\whale.exe'
 
 </details>
 
-## Recording
+## Recording · disk storage and optional MP4
 
-Start the stream, then press **●** in the right toolbar or **R**. A red indicator and elapsed time stay visible while recording. Press it again to finish and request a download. The **↓** link lets you save the last recording again if the automatic download is blocked.
+WebM is the default. The embedded extension settings and player ⚙ share `/recording/settings` on the local server. Browsers connected to the same port use the same settings. Settings are read on page load and **snapshotted when recording begins**.
 
-- Records the incoming image at its source dimensions, excluding zoom/pan and player controls.
-- Mixes audio tracks present when recording starts. Player mute and playback pause do **not** mute or pause the recording. No microphone or screen capture permission is requested.
-- Chooses a format with `MediaRecorder.isTypeSupported()`: WebM first, then MP4 where supported. Windows Chrome uses browser recording APIs; no FFmpeg installation is required. See [MediaRecorder documentation](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder).
-- Buffers data in memory and automatically stops around **256 MiB** (checked at each chunk), then offers the file. Start another recording for the next segment. This is not an unlimited-duration recorder.
-- Finalizes the current clip if video/audio tracks disappear or change. Reconnect and start a new clip to continue.
-- **Stop and save before closing/reloading the tab.** The browser is asked to warn while recording, but a crash or forced close can lose unsaved data. The last-file link remains until the next completed recording or page close.
+1. The browser encodes video and mixed audio into WebM chunks.
+2. Chunks upload sequentially in pieces of at most 4 MiB. Acknowledged data is released from memory.
+3. The server appends to a `.part` file. Identical sequence retries do not duplicate bytes.
+4. After the final chunk, the server finalizes the WebM.
+5. If selected, FFmpeg converts to H.264/AAC MP4 and decodes the entire result before publishing it.
 
-Actual Windows/Wave recording, audio playback, and download behavior still need device verification. Logic tests cover format rejection, audio mixing, final chunks, source changes, memory threshold, and protecting original tracks.
+The 256 MiB total-file cap is removed. A **pending browser upload queue over approximately 32 MiB stops recording and drains remaining chunks**. This does not strictly cap the browser's own chunk sizes or internal buffers. Low disk space rejects further writes. Actual 16GB+ or long-duration recording has not yet been verified.
+
+### Files and recovery
+
+The default directory is `.runtime/recordings/<recording ID>/`; the manual server uses `.runtime/recordings-manual/`. Set `RELAY_RECORDINGS_DIR` before server startup to choose another directory. Do not run multiple server processes against the same recording directory.
+
+- `source.webm.part`: active or interrupted input
+- `source.webm`: finalized original
+- `recording.mp4`: converted and checked output
+- `metadata.json`, `conversion.log`: state and conversion errors
+
+**WebM is retained even after successful conversion**, so budget space for both files. The library survives server restarts; unfinished sessions are marked `interrupted`. Partial files are not guaranteed playable and last-chunk recovery after a forced close is not guaranteed. Files use the recording directory, not the system temp directory.
+
+### FFmpeg
+
+On macOS with Homebrew: `brew install ffmpeg`. On Windows, select a Windows build from the [official FFmpeg download guide](https://ffmpeg.org/download.html), add `ffmpeg.exe` to PATH, then restart the server. Check with `ffmpeg -version`. Conversion requires `libx264` and an AAC encoder.
+
+Missing FFmpeg is reported when saving MP4 settings; WebM remains usable. Conversions run one at a time. Failures retain the original and can be retried from the file library's **MP4 conversion** button. The settings page also shows the directory for direct file access.
+
+### Security and verification
+
+The recording API restricts Host to loopback and requests to the same origin. Mutations require a random server token; file paths derive only from server-generated IDs. The extension embeds a localhost settings frame without adding host permissions. This is not an authentication boundary against other local users or processes.
+
+Synthetic browser recordings passed WebM/MP4 disk-save and download checks. Real FFmpeg tests verify H.264/AAC output. Automated tests cover ordering, retries, settings snapshots, failures, restart recovery, and original preservation. Live Windows recording, the installed-extension iframe, long recordings, and forced-close recovery need further validation.
 
 ## How it works
 
@@ -157,7 +179,7 @@ Manual relay uses **18744**; extension relay uses **18745**. Use one receiving t
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/capture.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs
 ```
 
 On Windows, replace `python3` with `py -3`. Node.js is needed only for the extension tests. After editing `recording.js`, `player-ui.js`, or `player-ui.css`, run `python3 build_player_ui.py` to update both player HTML files.

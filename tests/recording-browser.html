@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>Disk recording browser integration</title><style>body{font:16px system-ui;background:#102030;color:#dcf5ee;padding:24px}video{width:480px}</style><h1>Browser → disk → optional MP4</h1><p id="result">Running synthetic recording…</p><video id="video" muted autoplay playsinline></video>
+<script>/* RECORDING_SCRIPTS */</script><script>
+(async()=>{
+ const output=document.getElementById('result');let draw,stream;
+ try{
+  const settings=await (await fetch('/recording/settings')).json();
+  const modes=settings.ffmpeg?['webm','mp4']:['webm'];
+  const c=document.createElement('canvas');c.width=320;c.height=180;const ctx=c.getContext('2d');let frame=0;
+  draw=setInterval(()=>{ctx.fillStyle=frame++%2?'#126778':'#284759';ctx.fillRect(0,0,320,180);ctx.fillStyle='white';ctx.font='22px sans-serif';ctx.fillText('Frame '+frame,40,90);},50);
+  stream=c.captureStream(20);const video=document.getElementById('video');video.srcObject=stream;await video.play();
+  const results=[];
+  for(const format of modes){
+   await fetch('/recording/settings',{method:'POST',headers:{'Content-Type':'application/json','X-Recording-Token':settings.token},body:JSON.stringify({format})});
+   const job=await new Promise((resolve,reject)=>{
+    const recorder=createRelayRecorder(video,()=>[],{onState(){},onError:reject,onFile(job){if(job.state==='conversion_failed')reject(Error(job.error));else if(job.state==='complete')resolve(job);}});
+    recorder.start().then(()=>setTimeout(()=>recorder.stop(),1200)).catch(reject);
+   });
+   if(stream.getVideoTracks()[0].readyState!=='live')throw Error('Source stopped');
+   const r=await fetch(`/recording/${job.id}/file?format=${format}`);const bytes=(await r.arrayBuffer()).byteLength;
+   if(!r.ok||bytes<100)throw Error('Empty or invalid download');
+   results.push(format.toUpperCase()+' '+bytes+' bytes');
+  }
+  output.textContent='PASS — '+results.join(' · ')+' · original track preserved';
+ }catch(e){output.textContent='FAIL — '+e.message;}
+ finally{clearInterval(draw);stream?.getTracks().forEach(t=>t.stop());}
+})();
+</script>

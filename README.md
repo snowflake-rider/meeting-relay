@@ -12,6 +12,8 @@
 
 </div>
 
+> **이 문서는 `feature/recording-mp4` 기능 브랜치입니다.** WebM 디스크 저장과 선택적 MP4 변환을 포함합니다.
+
 > **Google Meet 지원은 `feature/google-meet` 브랜치의 개발 기능입니다.** 합성 영상 중계 테스트는 통과했으며 실제 Meet 회의의 영상·음성은 확인 중입니다. `main`에는 기존 Whale 버전이 유지됩니다.
 
 ## 시작하기
@@ -19,7 +21,7 @@
 **Python 3.9 이상**과 **Chrome**이 필요합니다. Whale ON을 사용하려면 **Whale**도 설치하세요.
 
 ```sh
-git clone --branch feature/google-meet https://github.com/snowflake-rider/meeting-relay.git
+git clone --branch feature/recording-mp4 https://github.com/snowflake-rider/meeting-relay.git
 cd meeting-relay
 ```
 
@@ -85,7 +87,14 @@ python3 launch.py --no-open
 | 소리 | 스피커 버튼 — 기본 음소거 |
 | 전체 화면 | `F` |
 
-**녹화는 약 256 MiB에서 자동 중지·저장합니다.** 탭을 닫기 전에 녹화를 중지하고 파일을 저장하세요. 재생 음소거·일시정지는 녹화에 영향을 주지 않습니다.
+**녹화는 WebM으로 디스크에 바로 저장합니다.** 확장의 녹화 설정 또는 플레이어 **⚙**에서 **‘녹화 종료 후 MP4로 자동 변환’**을 선택할 수 있습니다. 설정은 다음 녹화부터 적용됩니다.
+
+- WebM은 추가 설치 없이 사용합니다. MP4 변환은 **FFmpeg**가 필요합니다.
+- MP4 변환에 실패해도 WebM 원본은 남습니다. ⚙의 파일 목록에서 다시 변환하거나 다운로드하세요.
+- 저장 폴더는 기본적으로 이 프로젝트의 `.runtime/recordings`입니다. 폴더를 지우기 전에 녹화 파일을 보관하세요.
+- 탭을 닫기 전에 녹화를 중지하세요. 재생 음소거·일시정지는 녹화에 영향을 주지 않습니다.
+
+기존 서버와 별도로 시험하려면 위 Meet 실행 명령의 포트를 **18749**로 바꾸고, 확장의 **Local server port**도 18749로 맞추세요. 설정 페이지: `http://127.0.0.1:18749/recording-settings`.
 
 ## 더 알아보기
 

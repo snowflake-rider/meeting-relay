@@ -25,7 +25,8 @@ function installRelayUI(video, getAudios, getRelayState = () => ({connected:fals
     try{c.getContext('2d').drawImage(video,0,0);c.toBlob(blob=>{if(!blob){notify('스크린샷을 만들지 못했습니다');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);notify('원본 해상도 PNG 저장');},'image/png');}catch(e){notify('캡처 실패: '+e.message);}
   });
   snapshot.innerHTML=icon('<path d="M9 4 7 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2h-3l-2-3H9Z"/><circle cx="12" cy="13" r="4"/>');
-  let recordingURL;
+  let lastRecordingId;
+  add('recording-settings','⚙','녹화 설정 · MP4 변환',()=>window.open('/recording-settings','_blank','noopener'));
   const record = add('record','●','녹화 시작/중지 (R)',()=>{
     if(recorder.active) recorder.stop();
     else recorder.start().catch(e=>notify(e.message));
@@ -41,10 +42,14 @@ function installRelayUI(video, getAudios, getRelayState = () => ({connected:fals
       recordingLabel.textContent=state.status==='recording'?Math.floor(state.seconds/60)+':'+String(state.seconds%60).padStart(2,'0'):busy?'…':'';
       if(state.status==='recording'&&state.seconds===0)notify(state.audio?'녹화 시작 · 재생 음소거와 무관하게 오디오 포함':'녹화 시작 · 현재 오디오 트랙 없음');
     },
-    onFile(blob,extension,reason){
-      if(recordingURL)URL.revokeObjectURL(recordingURL);
-      recordingURL=URL.createObjectURL(blob);download.href=recordingURL;download.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.'+extension;download.hidden=false;download.click();
-      notify(reason||'녹화 다운로드 요청 · ↓ 버튼으로 다시 저장 가능');
+    onFile(job,reason,conversionUpdate=false){
+      if(conversionUpdate&&job.id!==lastRecordingId)return;
+      lastRecordingId=job.id;
+      const format=job.mp4?'mp4':'webm';
+      download.href=`/recording/${job.id}/file?format=${format}`;download.download='meeting-'+job.id+'.'+format;download.hidden=false;
+      if(job.state==='converting')notify('WebM 저장 완료 · MP4 변환 중. ⚙에서 상태를 확인하세요.');
+      else if(job.state==='conversion_failed')notify('MP4 변환 실패 · WebM 보존. ⚙에서 재시도하세요.');
+      else {download.click();notify(reason||'녹화 파일 저장 완료 · ↓로 다운로드');}
     },
     onError:notify
   });
