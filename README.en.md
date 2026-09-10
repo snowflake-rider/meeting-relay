@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Whale + Google Meet Relay" width="100%">
+<img src="docs/banner.svg" alt="Meeting Relay" width="100%">
 
 [한국어](README.md) · **English**
 
@@ -19,8 +19,8 @@ Zoom · Screenshots · Recording · Windows / macOS
 Install **Python 3.9+** and **Chrome**. Install **Whale** too if you use Whale ON.
 
 ```sh
-git clone --branch feature/google-meet https://github.com/snowflake-rider/whale-on-relay.git
-cd whale-on-relay
+git clone --branch feature/google-meet https://github.com/snowflake-rider/meeting-relay.git
+cd meeting-relay
 ```
 
 Already have the project? Run the commands from this branch's project folder. The server and receiving browser must be on the **same computer**.

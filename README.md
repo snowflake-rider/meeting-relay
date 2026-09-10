@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Whale + Google Meet Relay" width="100%">
+<img src="docs/banner.svg" alt="Meeting Relay" width="100%">
 
 **한국어** · [English](README.en.md)
 
@@ -19,8 +19,8 @@
 **Python 3.9 이상**과 **Chrome**이 필요합니다. Whale ON을 사용하려면 **Whale**도 설치하세요.
 
 ```sh
-git clone --branch feature/google-meet https://github.com/snowflake-rider/whale-on-relay.git
-cd whale-on-relay
+git clone --branch feature/google-meet https://github.com/snowflake-rider/meeting-relay.git
+cd meeting-relay
 ```
 
 이미 받았다면 해당 브랜치의 프로젝트 폴더에서 실행하세요. 서버와 수신 브라우저는 **같은 컴퓨터**에 있어야 합니다.

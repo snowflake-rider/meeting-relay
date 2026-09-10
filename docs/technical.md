@@ -1,4 +1,4 @@
-# 기술 문서 · Whale + Google Meet Relay
+# 기술 문서 · Meeting Relay
 
 [간단 사용법으로 돌아가기](../README.md) · [English](technical.en.md)
 
@@ -43,7 +43,7 @@ New-Item -ItemType File $PROFILE
 ```powershell
 function cls-whale {
     $env:WHALE_MEETING_URL = 'https://whaleon.us/o/YOUR-LINK'
-    & 'C:\Projects\whale-on-relay\cls-whale.ps1' @args
+    & 'C:\Projects\meeting-relay\cls-whale.ps1' @args
 }
 ```
 
@@ -61,7 +61,7 @@ cls-whale | Set-Clipboard
 ```zsh
 cls-whale() {
   WHALE_MEETING_URL='https://whaleon.us/o/YOUR-LINK' \
-    python3 "$HOME/Projects/whale-on-relay/launch.py" "$@"
+    python3 "$HOME/Projects/meeting-relay/launch.py" "$@"
 }
 ```
 

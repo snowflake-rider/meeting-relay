@@ -1,4 +1,4 @@
-# Technical guide · Whale + Google Meet Relay
+# Technical guide · Meeting Relay
 
 [Back to quick start](../README.en.md) · [한국어](technical.md)
 
@@ -43,7 +43,7 @@ Add this function, using your actual project path and meeting link:
 ```powershell
 function cls-whale {
     $env:WHALE_MEETING_URL = 'https://whaleon.us/o/YOUR-LINK'
-    & 'C:\Projects\whale-on-relay\cls-whale.ps1' @args
+    & 'C:\Projects\meeting-relay\cls-whale.ps1' @args
 }
 ```
 
@@ -61,7 +61,7 @@ Add this function to `~/.zshrc`, replacing the path and link:
 ```zsh
 cls-whale() {
   WHALE_MEETING_URL='https://whaleon.us/o/YOUR-LINK' \
-    python3 "$HOME/Projects/whale-on-relay/launch.py" "$@"
+    python3 "$HOME/Projects/meeting-relay/launch.py" "$@"
 }
 ```
 
