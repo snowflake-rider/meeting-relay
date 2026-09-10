@@ -12,4 +12,4 @@ for name in ('relay.html', 'auto-player.html'):
     else:
         html = html.rsplit('</html>', 1)[0]
     path.write_text(html + '<style id="relay-ui-style">' + css + '</style><script>' + js
-                    + '\ninstallRelayUI(video,()=>audios);</script></html>\n')
+                    + '\ninstallRelayUI(video,()=>audios,()=>({connected:pc?.connectionState===\"connected\",sound}));</script></html>\n')

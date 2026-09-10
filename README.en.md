@@ -171,15 +171,16 @@ $env:WHALE_PATH = 'D:\Apps\Whale\Application\whale.exe'
 
 | Control | Shortcut / gesture |
 | :--- | :--- |
+| Connection | Green LIVE: video connected / red OFF: waiting or disconnected |
 | Play / pause | `Space` |
 | Zoom in / out | `+` / `−`, wheel, or pinch |
 | Move a zoomed image | Drag |
 | Fit to window | `0` or the scale button |
-| Save screenshot | `S` |
+| Save screenshot | Camera icon or `S` |
 | Start / stop recording | `R` or ● / ■ |
 | Save last recording again | ↓, shown after recording ends |
 | Full screen | `F` |
-| Sound | ♪ — muted by default |
+| Sound | Speaker: on / slashed speaker: off — muted by default |
 | Stop / reconnect | ■ |
 
 Pausing freezes your local view. Resuming returns to live video; there is no DVR or rewind. Enable sound in either Whale or the player to avoid hearing both.

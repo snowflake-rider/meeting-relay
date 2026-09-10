@@ -1,4 +1,4 @@
-function installRelayUI(video, getAudios) {
+function installRelayUI(video, getAudios, getRelayState = () => ({connected:false, sound:false})) {
   if (document.querySelector('#relay-tools')) return;
   video.removeAttribute('controls');
   const stage=document.createElement('div');stage.id='relay-stage';
@@ -9,16 +9,22 @@ function installRelayUI(video, getAudios) {
   let toastTimer,scale=1,x=0,y=0;
   function notify(text){toast.textContent=text;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200);}
   function add(id,text,label,action){const b=document.createElement('button');b.id=id;b.textContent=text;b.title=label;b.setAttribute('aria-label',label);b.onclick=action;tools.append(b);return b;}
+  const connection=document.createElement('div');connection.id='relay-connection';connection.setAttribute('role','status');connection.setAttribute('aria-live','polite');tools.append(connection);
+  const icon=paths=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  const speaker='<path d="M11 5 6 9H3v6h3l5 4V5Z"/>';
+  const speakerOn=icon(speaker+'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>');
+  const speakerOff=icon(speaker+'<path d="m3 3 18 18"/>');
   const play=add('toggle-play','Ⅱ','일시정지 (Space)',()=>{if(video.paused)video.play().catch(()=>notify('재생할 영상이 없습니다'));else video.pause();});
   const plus=add('zoom-in','+','확대 (+)',()=>zoom(scale*1.25));
   const reset=add('zoom-reset','100%','화면 맞춤 (0)',()=>{scale=1;x=0;y=0;render();});
   add('zoom-out','−','축소 (-)',()=>zoom(scale/1.25));
   tools.append(document.createElement('hr'));
-  add('snapshot','▣','스크린샷 저장 (S)',()=>{
+  const snapshot=add('snapshot','','스크린샷 저장 (S)',()=>{
     if(!video.videoWidth||video.readyState<2){notify('영상이 들어온 뒤 캡처할 수 있습니다');return;}
     const c=document.createElement('canvas');c.width=video.videoWidth;c.height=video.videoHeight;
     try{c.getContext('2d').drawImage(video,0,0);c.toBlob(blob=>{if(!blob){notify('스크린샷을 만들지 못했습니다');return;}const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='whale-'+new Date().toISOString().replace(/[:.]/g,'-')+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);notify('원본 해상도 PNG 저장');},'image/png');}catch(e){notify('캡처 실패: '+e.message);}
   });
+  snapshot.innerHTML=icon('<path d="M9 4 7 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2h-3l-2-3H9Z"/><circle cx="12" cy="13" r="4"/>');
   let recordingURL;
   const record = add('record','●','녹화 시작/중지 (R)',()=>{
     if(recorder.active) recorder.stop();
@@ -44,7 +50,28 @@ function installRelayUI(video, getAudios) {
   });
   addEventListener('beforeunload',e=>{if(recorder.active){e.preventDefault();e.returnValue='';}});
   for(const [id,title] of [['sound','소리 켜기/끄기'],['full','전체 화면 (F)'],['stop','중계 끊기/다시 연결']]){const b=document.getElementById(id);if(b){b.title=title;b.setAttribute('aria-label',title);tools.append(b);}}
-  document.querySelector('#sound')?.addEventListener('click',()=>{if(video.paused)getAudios().forEach(a=>a.pause());});
+  const soundButton=document.querySelector('#sound');
+  let previousConnected,previousSound;
+  function syncIndicators(){
+    const state=getRelayState();
+    const connected=Boolean(state.connected&&video.srcObject?.getVideoTracks().some(t=>t.readyState==='live'&&!t.muted));
+    if(connected!==previousConnected){
+      previousConnected=connected;connection.dataset.connected=String(connected);
+      connection.innerHTML='<span class="connection-dot" aria-hidden="true"></span><span>'+(connected?'LIVE':'OFF')+'</span>';
+      connection.title=connected?'영상 연결됨':'영상 연결 끊김 / 연결 대기';connection.setAttribute('aria-label',connection.title);
+    }
+    const enabled=Boolean(state.sound);
+    // Receiver click handlers may replace button text; restore the icon immediately.
+    if(soundButton&&(enabled!==previousSound||!soundButton.querySelector('svg'))){
+      previousSound=enabled;soundButton.innerHTML=enabled?speakerOn:speakerOff;
+      soundButton.title=enabled?'소리 켜짐 · 눌러서 끄기':'소리 꺼짐 · 눌러서 켜기';
+      soundButton.setAttribute('aria-label',soundButton.title);soundButton.setAttribute('aria-pressed',String(enabled));
+    }
+  }
+  soundButton?.addEventListener('click',()=>{if(video.paused)getAudios().forEach(a=>a.pause());syncIndicators();});
+  syncIndicators();
+  const indicatorTimer=setInterval(syncIndicators,500);
+  addEventListener('pagehide',()=>clearInterval(indicatorTimer),{once:true});
   const full=document.querySelector('#full');if(full)full.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>notify('전체 화면을 사용할 수 없습니다'));else video.webkitEnterFullscreen?.();};
   function bounds(){const w=stage.clientWidth,h=stage.clientHeight;const fit=video.videoWidth?Math.min(w/video.videoWidth,h/video.videoHeight):1;return{mx:Math.max(0,video.videoWidth*fit*scale-w)/2,my:Math.max(0,video.videoHeight*fit*scale-h)/2};}
   function render(){const b=bounds();x=Math.max(-b.mx,Math.min(b.mx,x));y=Math.max(-b.my,Math.min(b.my,y));video.style.transform=`translate(${x}px,${y}px) scale(${scale})`;reset.textContent=Math.round(scale*100)+'%';reset.setAttribute('aria-label',`확대 ${Math.round(scale*100)}%, 눌러서 화면 맞춤`);plus.disabled=scale>=8;}
