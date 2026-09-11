@@ -18,7 +18,7 @@ Meet capture starts with `getDisplayMedia()`. A direct user gesture and a fresh 
 
 ### Optional Meet extension workflow
 
-Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.5.1**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
+Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.5.2**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
 
 ### Meet verification
 
@@ -197,6 +197,10 @@ Use one Whale meeting at a time. The project has no bundled meeting link. Save y
 
 ### Port settings and moved project folders
 
-Extension 0.5.1 applies the saved local port to the Whale sender as well as the player URL (default 18745). Save the setting and open the receiver at the new address. After updating the extension, reload it and rejoin the Whale meeting to install the new settings bridge.
+Extension 0.5.2 applies the saved local port to the Whale sender as well as the player URL (default 18745). Save the setting and open the receiver at the new address. After updating the extension, reload it and rejoin the Whale meeting to install the new settings bridge.
 
 Stop the server before moving its project folder, then restart it from the new location. Missing or unreadable required files make health and asset requests return HTTP 503 with recovery instructions; the launcher refuses to reuse that server.
+
+### Automatic reconnection
+
+Whale and Meet retry on the next heartbeat after 8 seconds of disconnection or 20 seconds of unfinished negotiation. Receivers can request a restart for the current epoch; stale requests cannot replace a newer connection. Temporary signaling poll errors preserve healthy media. Browser timer delays can extend recovery time. Replacing tracks finalizes an active recording through the existing track-change handler; start a new recording afterward. Reload the extension, rejoin the meeting and refresh the player to apply the update.

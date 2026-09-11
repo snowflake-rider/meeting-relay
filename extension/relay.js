@@ -42,7 +42,7 @@
     const pc=new RTCPeerConnection({iceServers:[]});
     const originals=[source.srcObject.getVideoTracks()[0],...[...document.querySelectorAll('audio')].flatMap(a=>a.srcObject?.getAudioTracks()||[])];
     const tracks=[...new Set(originals)].filter(t=>t.readyState==='live').map(t=>t.clone());
-    const entry={pc,tracks,epoch:crypto.randomUUID(),seen:Date.now(),offered:false};peers.set(session,entry);
+    const entry={pc,tracks,epoch:crypto.randomUUID(),seen:Date.now(),started:Date.now(),badSince:null,offered:false};peers.set(session,entry);
     try {
       for(const t of tracks){if(t.kind==='video')t.contentHint='detail';pc.addTrack(t,new MediaStream([t]));}
       await pc.setLocalDescription(await pc.createOffer());
@@ -59,14 +59,21 @@
     const source=video();
     try{
       const messages=await request('/poll?role=sender');
+      if(!alive||!enabled)return;
       const track=source?.srcObject.getVideoTracks()[0];
       if(sourceTrack&&track!==sourceTrack){[...peers.keys()].forEach(close);}sourceTrack=track;
       for(const m of messages){
         let p=peers.get(m.session);
         if(m.payload.stop){close(m.session);continue;}
         if(m.payload.hello){
-          if(p)p.seen=Date.now();
-          if(source&&(!p||['failed','closed'].includes(p.pc.connectionState))&&peers.size<3)void connect(m.session,source);
+          if(p){
+            p.seen=Date.now();
+            p.badSince=p.pc.connectionState==='disconnected'?(p.badSince??Date.now()):null;
+          }
+          const retry=p&&(m.payload.restart===p.epoch||['failed','closed'].includes(p.pc.connectionState)||
+            (p.badSince!==null&&Date.now()-p.badSince>=8000)||
+            (['new','connecting'].includes(p.pc.connectionState)&&Date.now()-p.started>=20000));
+          if(source&&(!p||retry)&&(p||peers.size<3))void connect(m.session,source);
         }else if(m.payload.answer&&p&&p.epoch===m.payload.epoch){
           if(!p.pc.remoteDescription)await p.pc.setRemoteDescription(m.payload.answer);
         }

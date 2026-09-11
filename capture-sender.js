@@ -18,7 +18,7 @@ function createCaptureSender(stream, {request, onStatus, Peer = RTCPeerConnectio
     close(id);
     const pc = new Peer({iceServers:[]});
     const tracks = stream.getTracks().filter(t => t.readyState === 'live').map(t => t.clone());
-    const entry = {pc, tracks, epoch:crypto.randomUUID(), seen:Date.now()};
+    const entry = {pc, tracks, epoch:crypto.randomUUID(), seen:Date.now(), started:Date.now(), badSince:null};
     peers.set(id, entry);
     try {
       tracks.forEach(t => pc.addTrack(t, new MediaStream([t])));
@@ -37,8 +37,14 @@ function createCaptureSender(stream, {request, onStatus, Peer = RTCPeerConnectio
         let entry = peers.get(message.session);
         if (message.payload.stop) { close(message.session); continue; }
         if (message.payload.hello) {
-          if (entry) entry.seen = Date.now();
-          if ((!entry || ['failed','closed','disconnected'].includes(entry.pc.connectionState)) && (entry || peers.size < 3)) void connect(message.session);
+          if (entry) {
+            entry.seen = Date.now();
+            entry.badSince = entry.pc.connectionState === 'disconnected' ? (entry.badSince ?? Date.now()) : null;
+          }
+          const retry = entry && (message.payload.restart === entry.epoch || ['failed','closed'].includes(entry.pc.connectionState) ||
+            (entry.badSince !== null && Date.now()-entry.badSince >= 8000) ||
+            (['new','connecting'].includes(entry.pc.connectionState) && Date.now()-entry.started >= 20000));
+          if ((!entry || retry) && (entry || peers.size < 3)) void connect(message.session);
         } else if (message.payload.answer && entry && entry.epoch === message.payload.epoch && !entry.pc.remoteDescription) {
           await entry.pc.setRemoteDescription(message.payload.answer);
         }

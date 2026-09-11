@@ -55,3 +55,15 @@ test('whole-window captures are rejected and disposed',async()=>{
 test('cancelled selection can be retried',async()=>{
   const h=await pageHarness('browser',true,true);assert.equal(h.senderStarted,false);assert.equal(h.elements.start.disabled,false);assert.match(h.elements.status.textContent,/취소/);
 });
+test('Meet recovers at capacity, ignores stale restart requests and bounds negotiation',async()=>{
+ let now=0,incoming=['A','B','C'].map(session=>({session,payload:{hello:true}}));
+ const context=vm.createContext({MediaStream:class{},RTCPeerConnection:Peer,crypto:require('node:crypto').webcrypto,Date:{now:()=>now},setInterval(){},clearInterval(){},setTimeout,clearTimeout});
+ vm.runInContext(source,context);
+ const sender=context.createCaptureSender({getTracks:()=>[track('video')]},{onStatus(){},request:async(url,body)=>{if(body)return {};const result=incoming;incoming=[];return result;}});
+ await flush();const first=sender.peers.get('A');first.pc.connectionState='connected';
+ incoming=[{session:'A',payload:{hello:true,restart:'stale'}}];await sender.tick();assert.equal(sender.peers.get('A'),first);
+ incoming=[{session:'A',payload:{hello:true,restart:first.epoch}}];await sender.tick();await flush();const second=sender.peers.get('A');assert.notEqual(second,first);assert.equal(sender.peers.size,3);
+ now=21000;incoming=['A','B','C'].map(session=>({session,payload:{hello:true}}));await sender.tick();await flush();assert.notEqual(sender.peers.get('A'),second);
+ const third=sender.peers.get('A');third.pc.connectionState='disconnected';incoming=[{session:'A',payload:{hello:true}}];await sender.tick();assert.equal(sender.peers.get('A'),third);
+ now+=9000;incoming=[{session:'A',payload:{hello:true}}];await sender.tick();await flush();assert.notEqual(sender.peers.get('A'),third);sender.stop();
+});
