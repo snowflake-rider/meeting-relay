@@ -10,7 +10,7 @@
 | Google Meet | 사용자가 선택한 Chrome 탭 캡처 | `http://127.0.0.1:18747/?source=meet` |
 | Whale 수동 중계 | Console에서 `sender.js` 실행 | `http://127.0.0.1:18744/` |
 
-Meet용 18747은 기존 Whale 서버와 함께 테스트하기 위한 선택입니다. 서버의 `--port`와 확장 팝업의 **Local server port**를 맞추면 다른 포트도 사용할 수 있습니다. Whale 자동 주입 스크립트는 기존 18745를 사용합니다.
+Meet용 18747은 기존 Whale 서버와 함께 테스트하기 위한 선택입니다. 서버의 `--port`와 확장 팝업의 **Local server port**를 맞추면 다른 포트도 사용할 수 있습니다. Whale 송신도 저장한 포트에 맞춰 연결을 전환합니다. 기본값은 18745입니다. 포트를 바꾼 뒤 Save link를 누르고 수신 플레이어도 새 주소로 여세요.
 
 `main`은 Whale 버전이며 Google Meet 작업은 `feature/google-meet` 브랜치에 있습니다. Meet와 Whale은 서버 내부에서 서로 다른 메시지 채널을 사용합니다. 같은 서비스의 송신 창은 하나만 사용하세요.
 
@@ -18,7 +18,7 @@ Meet 캡처는 `getDisplayMedia()`로 시작합니다. 사용자가 직접 버�
 
 ### 확장으로 Meet 열기
 
-이 브랜치의 `extension` 폴더를 Chrome에서 **Load unpacked**로 설치하면 **Whale + Meet Local Relay 0.4.0**이 표시됩니다. Meet 링크를 저장하고 **Open class**로 엽니다. **Local server port**를 `18747`로 바꾼 뒤 **Google Meet · 탭 중계 열기**를 누르세요. 확장은 로컬 Python 서버를 실행하지 않습니다.
+이 브랜치의 `extension` 폴더를 Chrome에서 **Load unpacked**로 설치하면 **Whale + Meet Local Relay 0.5.1**이 표시됩니다. Meet 링크를 저장하고 **Open class**로 엽니다. **Local server port**를 `18747`로 바꾼 뒤 **Google Meet · 탭 중계 열기**를 누르세요. 확장은 로컬 Python 서버를 실행하지 않습니다.
 
 ### Meet 검증
 
@@ -193,3 +193,9 @@ Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScr
 | 추가 기기 확인 | 실제 회의 확장 자동 주입·재연결, Windows·Wave 재생·녹화·다운로드, 로그인 자동 실행, 핀치 |
 
 한 번에 Whale 회의 하나를 사용하세요. 개인 수업 링크는 확장 또는 로컬 셸 설정에 저장하며 프로젝트에는 포함하지 않습니다.
+
+### 프로젝트 폴더를 옮긴 뒤 접속 오류
+
+실행 중인 서버는 시작 당시의 프로젝트 경로를 사용합니다. 폴더 이동 전 서버를 종료하고, 이동 후 새 경로에서 다시 실행하세요. 필수 파일이 없거나 읽을 수 없으면 `/health`와 파일 요청이 복구 안내를 포함한 HTTP 503을 반환합니다. 실행기는 이 서버를 정상으로 재사용하지 않습니다.
+
+확장 0.5.1 업데이트 후 확장 관리에서 새로고침하고 Whale 회의에 다시 입장해야 새 포트 설정 전달 코드가 적용됩니다. 수업 중에는 기존 18745 연결을 유지하고 쉬는 시간에 업데이트할 수 있습니다.

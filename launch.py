@@ -1,5 +1,6 @@
 """Start/reuse local signaling, open the class in Whale, print only the player URL."""
 import argparse
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path
@@ -56,7 +57,12 @@ def ready():
         with urlopen(PLAYER + 'health', timeout=1) as response:
             data = json.load(response)
     except HTTPError as error:
+        error.close()
+        if error.code == 503:
+            raise RuntimeError('Project files are missing or unreadable. Restore the project folder and restart the relay server from its current location.') from error
         raise RuntimeError(f'{PORT}번 포트가 다른 서비스에 사용 중입니다.') from error
+    except HTTPException as error:
+        raise RuntimeError('Relay returned an empty response. Restore the project folder and restart the server.') from error
     except (URLError, TimeoutError):
         return False
     except (ValueError, UnicodeError) as error:

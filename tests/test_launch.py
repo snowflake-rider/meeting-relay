@@ -2,6 +2,8 @@ import contextlib
 import importlib.util
 import io
 import json
+from urllib.error import HTTPError
+from http.client import RemoteDisconnected
 import os
 from pathlib import Path
 import tempfile
@@ -57,6 +59,12 @@ class LauncherTests(unittest.TestCase):
         with patch.object(launch, 'urlopen', return_value=io.BytesIO(body)):
             with self.assertRaisesRegex(RuntimeError, '18749'):
                 launch.ready()
+
+    def test_missing_project_error_is_actionable(self):
+        for error in (HTTPError('http://127.0.0.1/health',503,'Unavailable',{},None), RemoteDisconnected()):
+            with patch.object(launch, 'urlopen', side_effect=error):
+                with self.assertRaisesRegex(RuntimeError, 'restart'):
+                    launch.ready()
 
     def test_mac_open_unchanged(self):
         with patch.object(launch.sys, 'platform', 'darwin'), patch.object(launch.subprocess, 'run') as run:

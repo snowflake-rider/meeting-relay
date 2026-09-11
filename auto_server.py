@@ -12,6 +12,9 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parent
+REQUIRED_ASSETS = ('auto-player.html', 'auto-player.js', 'capture.html', 'capture.js', 'capture.css', 'capture-sender.js', 'recording-settings.html', 'recording-settings.js', 'recording-settings.css')
+RECOVERY = 'Project files are missing or unreadable. Restore the project folder and restart the relay server from its current location.'
+
 CHANNELS = {'whale', 'meet'}
 QUEUES = {}
 LOCK = threading.Lock()
@@ -48,11 +51,21 @@ class Handler(BaseHTTPRequestHandler):
         self.reply({}, 200 if self.allowed() else 403)
 
     def do_GET(self):
+        try:
+            self.get_response()
+        except OSError:
+            self.reply({'ok': False, 'error': RECOVERY}, 503)
+
+    def get_response(self):
         if handle_recordings(self, 'GET', ROOT): return
         if not self.allowed():
             self.reply({}, 403); return
         url = urlsplit(self.path)
-        if url.path == '/':
+        if url.path == '/health':
+            for name in REQUIRED_ASSETS:
+                with (ROOT / name).open('rb') as asset: asset.read(1)
+            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture', 'disk-recording']})
+        elif url.path == '/':
             self.reply((ROOT / 'auto-player.html').read_bytes(), content_type='text/html; charset=utf-8')
         elif url.path == '/player.js':
             self.reply((ROOT / 'auto-player.js').read_bytes(), content_type='text/javascript; charset=utf-8')
@@ -60,8 +73,6 @@ class Handler(BaseHTTPRequestHandler):
             names = {'/capture': ('capture.html', 'text/html; charset=utf-8'), '/capture.js': ('capture.js', 'text/javascript; charset=utf-8'), '/capture.css': ('capture.css', 'text/css; charset=utf-8'), '/capture-sender.js': ('capture-sender.js', 'text/javascript; charset=utf-8')}
             name, mime = names[url.path]
             self.reply((ROOT / name).read_bytes(), content_type=mime)
-        elif url.path == '/health':
-            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture', 'disk-recording']})
         elif url.path == '/poll':
             query = parse_qs(url.query)
             channel = query.get('channel', ['whale'])[0]

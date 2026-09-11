@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import threading
 import unittest
+import tempfile
+from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
@@ -53,3 +55,12 @@ class ServerTests(unittest.TestCase):
         for path in ('/capture','/capture.js','/capture-sender.js','/capture.css'):
             self.assertTrue(self.request(path))
         self.assertIn('meet-tab-capture', json.loads(self.request('/health'))['features'])
+
+    def test_missing_assets_return_actionable_503(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(module, 'ROOT', Path(folder)):
+            for route in ('/health', '/', '/player.js', '/capture'):
+                with self.assertRaises(HTTPError) as caught:
+                    self.request(route)
+                self.assertEqual(caught.exception.code, 503)
+                self.assertIn('restart', caught.exception.read().decode().lower())
+                caught.exception.close()

@@ -10,7 +10,7 @@
 | Google Meet | User-selected Chrome tab capture | `http://127.0.0.1:18747/?source=meet` |
 | Whale manual relay | `sender.js` in the meeting Console | `http://127.0.0.1:18744/` |
 
-Meet uses 18747 in the quick start so it can coexist with the stable Whale server. Match the server's `--port` and the popup's **Local server port** to use another port. Whale's automatic content script keeps its existing port 18745.
+Meet uses 18747 in the quick start so it can coexist with the stable Whale server. Match the server's `--port` and the popup's **Local server port** to use another port. Whale's sender follows the saved port too; its default is 18745. Click Save link and open the receiving player at the same port.
 
 `main` contains the Whale version; Meet development is on `feature/google-meet`. The server isolates Whale and Meet signaling channels. Use only one sending page per service at a time.
 
@@ -18,7 +18,7 @@ Meet capture starts with `getDisplayMedia()`. A direct user gesture and a fresh 
 
 ### Optional Meet extension workflow
 
-Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.4.0**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
+Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.5.1**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
 
 ### Meet verification
 
@@ -194,3 +194,9 @@ On Windows, replace `python3` with `py -3`. Node.js is needed only for the exten
 | Still to verify | Live extension injection/reconnection, live Windows playback, Windows terminal-close behavior, macOS login startup, physical pinch gestures, and cmux screenshot downloads. |
 
 Use one Whale meeting at a time. The project has no bundled meeting link. Save your own link in the extension, or use local shell configuration for the optional CLI shortcut.
+
+### Port settings and moved project folders
+
+Extension 0.5.1 applies the saved local port to the Whale sender as well as the player URL (default 18745). Save the setting and open the receiver at the new address. After updating the extension, reload it and rejoin the Whale meeting to install the new settings bridge.
+
+Stop the server before moving its project folder, then restart it from the new location. Missing or unreadable required files make health and asset requests return HTTP 503 with recovery instructions; the launcher refuses to reuse that server.
