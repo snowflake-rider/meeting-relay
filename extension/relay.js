@@ -2,7 +2,7 @@
 // No camera/microphone capture, cookies, account data or remote signaling.
 (() => {
   if (window.__whaleAutoRelay) return;
-  const BASE = 'http://127.0.0.1:18745';
+  let BASE = 'http://127.0.0.1:18745';
   const peers = new Map();
   let enabled = true, alive = true, sourceTrack = null;
   const host = document.createElement('div');
@@ -13,9 +13,26 @@
   const label=shadow.querySelector('span'), button=shadow.querySelector('button');
   const close = id => { const p=peers.get(id); if(p){p.pc.close();p.tracks.forEach(t=>t.stop());peers.delete(id);} };
   button.onclick=()=>{enabled=!enabled;button.textContent=enabled?'중계 끄기':'중계 켜기';if(!enabled)[...peers.keys()].forEach(close);label.textContent=enabled?'플레이어 연결 대기':'중계 꺼짐';};
+  const configure = event => {
+    const port = Number(event.detail);
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) return;
+    const next = `http://127.0.0.1:${port}`;
+    if (next === BASE) return;
+    BASE = next;
+    [...peers.keys()].forEach(close);
+    sourceTrack = null;
+    shadow.querySelector('a').href = BASE + '/';
+    label.textContent = '플레이어 연결 대기';
+  };
+  window.addEventListener('whale-relay-config', configure);
+  window.dispatchEvent(new CustomEvent('whale-relay-ready'));
   const request = async(path,body) => {
-    const r=await fetch(BASE+path,body===undefined?{signal:AbortSignal.timeout(2500)}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(2500)});
-    if(!r.ok)throw Error('server '+r.status);return r.json();
+    const base = BASE;
+    const r=await fetch(base+path,body===undefined?{signal:AbortSignal.timeout(2500)}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(2500)});
+    if(!r.ok)throw Error('server '+r.status);
+    const data = await r.json();
+    if(base!==BASE)throw Error('Relay port changed');
+    return data;
   };
   const send=(session,payload)=>request('/send',{to:'receiver',session,payload});
   const gather=pc=>new Promise(resolve=>{if(pc.iceGatheringState==='complete')return resolve();const done=()=>{clearTimeout(timer);pc.removeEventListener('icegatheringstatechange',changed);resolve();};const changed=()=>{if(pc.iceGatheringState==='complete')done();};const timer=setTimeout(done,4000);pc.addEventListener('icegatheringstatechange',changed);});
@@ -59,6 +76,6 @@
       label.textContent=!source?'공유 영상 대기':count?`로컬 중계 ${count}개 연결`:'플레이어 연결 대기';
     }catch(e){label.textContent='서버 꺼짐 · 로컬 실행 명령을 실행하세요';}
   }
-  window.__whaleAutoRelay={peers,stop(){alive=false;[...peers.keys()].forEach(close);host.remove();delete window.__whaleAutoRelay;}};
+  window.__whaleAutoRelay={peers,stop(){alive=false;window.removeEventListener('whale-relay-config',configure);[...peers.keys()].forEach(close);host.remove();delete window.__whaleAutoRelay;}};
   (async()=>{while(alive){await tick().catch(()=>{});await new Promise(r=>setTimeout(r,750));}})();
 })();

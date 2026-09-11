@@ -23,15 +23,16 @@ function harness({audio=false, supported=true}={}) {
   }
   const v=track('video'), a=track('audio'), video={srcObject:new Stream([v])};
   const audios=audio?[{srcObject:new Stream([a])},{srcObject:new Stream([track('audio')])}]:[];
-  const files=[], states=[], errors=[];
-  const ctx=vm.createContext({MediaStream:Stream,MediaRecorder:Recorder,AudioContext:AudioEngine,Blob,Date,setInterval(fn){tick=fn;return 1;},clearInterval(){}});
+  const files=[], states=[], errors=[],uploaded=[];
+  const createDiskUpload=async()=>({append:async blob=>{uploaded.push(blob);},finish:async()=>({id:'test',state:'complete',format:'webm'}),abort:async()=>({})});
+  const ctx=vm.createContext({createDiskUpload,MediaStream:Stream,MediaRecorder:Recorder,AudioContext:AudioEngine,Blob,Date,setInterval(fn){tick=fn;return 1;},clearInterval(){}});
   vm.runInContext(source,ctx);
   const controller=ctx.createRelayRecorder(video,()=>audios,{onFile(...args){files.push(args);},onState(s){states.push(s);},onError(e){errors.push(e);}});
-  return {controller,video,v,a,files,states,errors,get recorder(){return instance;},tick(){tick();}};
+  return {controller,video,v,a,files,states,errors,uploaded,get recorder(){return instance;},tick(){tick();}};
 }
 test('final chunk is saved and stopping never ends source tracks',async()=>{
-  const h=harness();await h.controller.start();h.controller.stop();
-  assert.equal(await h.files[0][0].text(),'final');assert.equal(h.files[0][1],'webm');
+  const h=harness();await h.controller.start();h.controller.stop();await new Promise(r=>setImmediate(r));
+  assert.equal(await h.uploaded[0].text(),'final');assert.equal(h.files[0][0].format,'webm');
   assert.equal(h.v.stopped,false);assert.equal(h.controller.active,false);
   assert.ok(h.recorder.stream.getVideoTracks()[0].stopped);
 });
@@ -41,7 +42,7 @@ test('all incoming audio is mixed into one recorded track',async()=>{
   h.controller.stop();assert.equal(h.a.stopped,false);
 });
 test('source replacement finalizes the recording',async()=>{
-  const h=harness();await h.controller.start();h.video.srcObject=null;h.tick();
+  const h=harness();await h.controller.start();h.video.srcObject=null;h.tick();await new Promise(r=>setImmediate(r));
   assert.equal(h.controller.active,false);assert.equal(h.files.length,1);
 });
 test('unsupported formats clean up without stopping original stream',async()=>{
@@ -50,8 +51,9 @@ test('unsupported formats clean up without stopping original stream',async()=>{
 });
 test('size threshold stops and saves rather than growing indefinitely',async()=>{
   const h=harness();await h.controller.start();
-  h.recorder.ondataavailable({data:{size:256*1024*1024}});
-  assert.equal(h.controller.active,false);assert.match(h.files[0][2],/256 MB/);
+  h.recorder.ondataavailable({data:{size:33*1024*1024}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(h.controller.active,false);assert.match(h.files[0][1],/저장 지연/);
 });
 test('duplicate starts do not create a second recording',async()=>{
   const h=harness();await h.controller.start();const first=h.recorder;

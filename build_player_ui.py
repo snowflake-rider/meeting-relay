@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 css = (ROOT / 'player-ui.css').read_text()
-js = (ROOT / 'recording.js').read_text() + '\n' + (ROOT / 'player-ui.js').read_text()
+js = (ROOT / 'recording-upload.js').read_text() + '\n' + (ROOT / 'recording.js').read_text() + '\n' + (ROOT / 'player-ui.js').read_text()
 for name in ('relay.html', 'auto-player.html'):
     path = ROOT / name
     html = path.read_text()

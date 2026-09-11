@@ -1,5 +1,6 @@
 """Start/reuse local signaling, open the class in Whale, print only the player URL."""
 import argparse
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path
@@ -11,7 +12,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parent
-PLAYER = 'http://127.0.0.1:18745/'
+PORT = 18745
+PLAYER = f'http://127.0.0.1:{PORT}/'
 MEETING = os.environ.get('WHALE_MEETING_URL', '')
 
 
@@ -55,13 +57,20 @@ def ready():
         with urlopen(PLAYER + 'health', timeout=1) as response:
             data = json.load(response)
     except HTTPError as error:
-        raise RuntimeError('18745번 포트가 다른 서비스에 사용 중입니다.') from error
+        error.close()
+        if error.code == 503:
+            raise RuntimeError('Project files are missing or unreadable. Restore the project folder and restart the relay server from its current location.') from error
+        raise RuntimeError(f'{PORT}번 포트가 다른 서비스에 사용 중입니다.') from error
+    except HTTPException as error:
+        raise RuntimeError('Relay returned an empty response. Restore the project folder and restart the server.') from error
     except (URLError, TimeoutError):
         return False
     except (ValueError, UnicodeError) as error:
-        raise RuntimeError('18745번 포트에서 중계 서버가 아닌 응답을 받았습니다.') from error
+        raise RuntimeError(f'{PORT}번 포트에서 중계 서버가 아닌 응답을 받았습니다.') from error
     if not isinstance(data, dict) or data.get('app') != 'whale-auto-relay' or data.get('version') != 2 or data.get('ok') is not True:
-        raise RuntimeError('18745번 포트의 서비스가 이 중계 서버와 일치하지 않습니다.')
+        raise RuntimeError(f'{PORT}번 포트의 서비스가 이 중계 서버와 일치하지 않습니다.')
+    if 'disk-recording' not in data.get('features', []):
+        raise RuntimeError('This port runs an older relay. Use --port 18749 for the recording feature, or restart the server from this project.')
     return True
 
 
@@ -71,7 +80,7 @@ def ensure_server():
     runtime = ROOT / '.runtime'
     runtime.mkdir(exist_ok=True)
     with (runtime / 'launcher-server.log').open('ab') as log:
-        child = subprocess.Popen([sys.executable, str(ROOT / 'auto_server.py')],
+        child = subprocess.Popen([sys.executable, str(ROOT / 'auto_server.py'), '--port', str(PORT)],
                                  cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log,
                                  stderr=log, **server_process_options())
     for _ in range(30):
@@ -84,22 +93,35 @@ def ensure_server():
 
 
 def main():
+    global PLAYER, PORT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--no-open', action='store_true', help='서버만 준비하고 주소 출력; 웨일은 열지 않음')
     parser.add_argument('--check', action='store_true', help='실행 중인 서버 확인만 수행; 서버/브라우저를 시작하지 않음')
     parser.add_argument('--meeting', default=MEETING, help='Whale meeting URL (or set WHALE_MEETING_URL)')
+    parser.add_argument('--port', type=int, default=18745, help='Local server port; use 18747 for isolated Meet development')
+    parser.add_argument('--source', choices=('whale','meet'), default='whale', help='Player source; Meet capture uses --no-open')
     args = parser.parse_args()
+    if not 1024 <= args.port <= 65535:
+        parser.error('port must be between 1024 and 65535')
+    PORT = args.port
+    PLAYER = f'http://127.0.0.1:{PORT}/'
     try:
         if args.check:
             if not ready():
                 raise RuntimeError('중계 서버가 꺼져 있습니다. cls-whale을 실행하세요.')
         else:
+            if args.source == 'meet' and not args.no_open:
+                raise RuntimeError('For Meet use --source meet --no-open, then open /capture in Chrome.')
             if not args.no_open and not args.meeting.startswith(('https://whaleon.us/', 'https://one.whaleon.naver.com/')):
                 raise RuntimeError('Set WHALE_MEETING_URL or pass --meeting with your https://whaleon.us/ meeting link. Use --no-open if already in the meeting.')
             ensure_server()
+            if args.source == 'meet':
+                with urlopen(PLAYER + 'health', timeout=1) as response:
+                    if 'meet-tab-capture' not in json.load(response).get('features', []):
+                        raise RuntimeError('This port runs a Whale-only server. Start the feature server on a separate --port.')
             if not args.no_open:
                 open_meeting(args.meeting)
-        print(PLAYER)
+        print(PLAYER + ('?source=meet' if args.source == 'meet' else ''))
     except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
         print('cls-whale: ' + str(error), file=sys.stderr)
         return 1
