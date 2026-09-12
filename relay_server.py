@@ -1,6 +1,7 @@
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import json, threading, os
+from server_lifecycle import serve
 from recording_http import attach_recordings, handle_recordings
 
 ROOT = Path(__file__).parent
@@ -59,4 +60,4 @@ class Handler(BaseHTTPRequestHandler):
 print('Chrome player: http://127.0.0.1:18744/ — Stop server with Ctrl+C', flush=True)
 server = ThreadingHTTPServer(('127.0.0.1', 18744), Handler)
 attach_recordings(server, os.environ.get('RELAY_RECORDINGS_DIR', str(ROOT / '.runtime' / 'recordings-manual')))
-server.serve_forever()
+serve(server)

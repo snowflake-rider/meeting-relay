@@ -46,3 +46,31 @@ for(const state of ['disconnected','connecting']) test(`Whale retries ${state} w
 
 });
 
+
+{
+const timers=[];let incoming=[{session:'A',payload:{hello:true}}], audio=[];
+const track=kind=>({kind,readyState:'live',stop(){this.readyState='ended'},clone(){return track(kind)}});
+const original=track('video');const firstAudio=track('audio'),nextAudio=track('audio');const source={videoWidth:1920,videoHeight:1080,srcObject:{getVideoTracks:()=>[original]}};
+const host={style:{},isConnected:true,attachShadow(){return {set innerHTML(v){},querySelector(){return {}}}},remove(){}};
+class Peer {constructor(){this.connectionState='connected';this.iceGatheringState='complete';this.senders=[]} addTrack(t){this.senders.push({track:t,getParameters:()=>({encodings:[{}]}),setParameters:async()=>{}})}getSenders(){return this.senders}async createOffer(){return {type:'offer'}}async setLocalDescription(d){this.localDescription=d}close(){this.connectionState='closed'}}
+const context={window:{addEventListener(){},dispatchEvent(){},removeEventListener(){}},CustomEvent:class{},location:{pathname:'/in/test'},document:{createElement:()=>host,querySelectorAll:s=>s==='video'?[source]:audio,body:{}},RTCPeerConnection:Peer,MediaStream:class{},crypto:require('node:crypto').webcrypto,AbortSignal,Date,setTimeout:f=>{timers.push(f)},clearTimeout(){},fetch:async(url,options)=>{if(options?.method)return {ok:true,json:async()=>({})};const result=incoming;incoming=[];return {ok:true,json:async()=>result}}};
+const flush=()=>new Promise(r=>setImmediate(r));
+test('Whale updates added, replaced and removed audio without stopping meeting tracks',async()=>{
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../extension/relay.js'),'utf8'),context);
+ await flush();await flush();const relay=context.window.__whaleAutoRelay;
+ let previous=relay.peers.get('A');assert.equal(previous.tracks.length,1);
+ async function tick(){incoming=[{session:'A',payload:{hello:true}},{session:'B',payload:{hello:true}}];timers.shift()();await flush();await flush();}
+ for(const sourceAudio of [firstAudio,nextAudio,null]){
+   audio=sourceAudio?[{srcObject:{getAudioTracks:()=>[sourceAudio]}}]:[];
+   await tick();const current=relay.peers.get('A');
+   assert.notEqual(current,previous);assert.ok(previous.tracks.every(t=>t.readyState==='ended'));
+   assert.equal(current.tracks.filter(t=>t.kind==='audio').length,sourceAudio?1:0);
+   assert.equal(relay.peers.size,2);assert.equal(original.readyState,'live');
+   assert.equal(firstAudio.readyState,'live');assert.equal(nextAudio.readyState,'live');
+   previous=current;
+ }
+ await tick();assert.equal(relay.peers.get('A'),previous,'unchanged source set should not reconnect');
+ relay.stop();assert.equal(original.readyState,'live');
+});
+
+}

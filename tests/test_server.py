@@ -8,6 +8,7 @@ from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from server_identity import identity
 
 spec = importlib.util.spec_from_file_location('relay_server_test', Path(__file__).resolve().parents[1] / 'auto_server.py')
 module = importlib.util.module_from_spec(spec)
@@ -17,6 +18,7 @@ class ServerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), module.Handler)
+        cls.server.relay_identity = identity(module.ROOT)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
         cls.base = f'http://127.0.0.1:{cls.server.server_port}'
@@ -54,7 +56,9 @@ class ServerTests(unittest.TestCase):
     def test_capture_routes_and_health(self):
         for path in ('/capture','/capture.js','/capture-sender.js','/capture.css'):
             self.assertTrue(self.request(path))
-        self.assertIn('meet-tab-capture', json.loads(self.request('/health'))['features'])
+        health=json.loads(self.request('/health'))
+        self.assertIn('meet-tab-capture',health['features'])
+        self.assertEqual(health['identity'],self.server.relay_identity)
 
     def test_missing_assets_return_actionable_503(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(module, 'ROOT', Path(folder)):

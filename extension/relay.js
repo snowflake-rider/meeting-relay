@@ -4,7 +4,7 @@
   if (window.__whaleAutoRelay) return;
   let BASE = 'http://127.0.0.1:18745';
   const peers = new Map();
-  let enabled = true, alive = true, sourceTrack = null;
+  let enabled = true, alive = true, sourceTracks = [];
   const host = document.createElement('div');
   host.id = 'whale-local-relay-control';
   host.style.cssText = 'position:fixed;right:16px;top:52px;z-index:2147483647';
@@ -20,7 +20,7 @@
     if (next === BASE) return;
     BASE = next;
     [...peers.keys()].forEach(close);
-    sourceTrack = null;
+    sourceTracks = [];
     shadow.querySelector('a').href = BASE + '/';
     label.textContent = '플레이어 연결 대기';
   };
@@ -37,11 +37,13 @@
   const send=(session,payload)=>request('/send',{to:'receiver',session,payload});
   const gather=pc=>new Promise(resolve=>{if(pc.iceGatheringState==='complete')return resolve();const done=()=>{clearTimeout(timer);pc.removeEventListener('icegatheringstatechange',changed);resolve();};const changed=()=>{if(pc.iceGatheringState==='complete')done();};const timer=setTimeout(done,4000);pc.addEventListener('icegatheringstatechange',changed);});
   const video=()=>[...document.querySelectorAll('video')].filter(v=>v.videoWidth>0&&v.srcObject?.getVideoTracks().some(t=>t.readyState==='live')).sort((a,b)=>b.videoWidth*b.videoHeight-a.videoWidth*a.videoHeight)[0];
+  const mediaTracks = source => [...new Set([...(source?.srcObject.getVideoTracks() || []).slice(0,1),
+    ...(source?.srcObject.getAudioTracks?.() || []),
+    ...[...document.querySelectorAll('audio')].flatMap(a=>a.srcObject?.getAudioTracks()||[])])].filter(t=>t.readyState==='live');
   async function connect(session, source) {
     close(session);
     const pc=new RTCPeerConnection({iceServers:[]});
-    const originals=[source.srcObject.getVideoTracks()[0],...[...document.querySelectorAll('audio')].flatMap(a=>a.srcObject?.getAudioTracks()||[])];
-    const tracks=[...new Set(originals)].filter(t=>t.readyState==='live').map(t=>t.clone());
+    const tracks=mediaTracks(source).map(t=>t.clone());
     const entry={pc,tracks,epoch:crypto.randomUUID(),seen:Date.now(),started:Date.now(),badSince:null,offered:false};peers.set(session,entry);
     try {
       for(const t of tracks){if(t.kind==='video')t.contentHint='detail';pc.addTrack(t,new MediaStream([t]));}
@@ -60,8 +62,12 @@
     try{
       const messages=await request('/poll?role=sender');
       if(!alive||!enabled)return;
-      const track=source?.srcObject.getVideoTracks()[0];
-      if(sourceTrack&&track!==sourceTrack){[...peers.keys()].forEach(close);}sourceTrack=track;
+      const tracks=mediaTracks(source);
+      // Observe audio identities too: speakers can join or reconnect without changing the video.
+      if(sourceTracks.length!==tracks.length||tracks.some(t=>!sourceTracks.includes(t))){
+        [...peers.keys()].forEach(close);
+      }
+      sourceTracks=tracks;
       for(const m of messages){
         let p=peers.get(m.session);
         if(m.payload.stop){close(m.session);continue;}

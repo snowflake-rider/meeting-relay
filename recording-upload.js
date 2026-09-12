@@ -21,6 +21,7 @@ async function createDiskUpload(mime) {
         sequence++;
       }
     },
+    heartbeat:()=>request(`/recording/${job.id}/heartbeat`,{},settings.token),
     finish:()=>request(`/recording/${job.id}/finish`,{chunks:sequence},settings.token),
     abort:()=>request(`/recording/${job.id}/abort`,{},settings.token),
     status:()=>request(`/recording/${job.id}/status`)

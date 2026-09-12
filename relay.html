@@ -43,6 +43,7 @@ async function createDiskUpload(mime) {
         sequence++;
       }
     },
+    heartbeat:()=>request(`/recording/${job.id}/heartbeat`,{},settings.token),
     finish:()=>request(`/recording/${job.id}/finish`,{chunks:sequence},settings.token),
     abort:()=>request(`/recording/${job.id}/abort`,{},settings.token),
     status:()=>request(`/recording/${job.id}/status`)
@@ -60,6 +61,7 @@ function createRelayRecorder(video, getAudios, callbacks) {
   const update = state => callbacks.onState(state);
   function cleanup(s) {
     clearInterval(s.timer);
+    clearInterval(s.heartbeatTimer);
     s.clones.forEach(t => t.stop());
     s.nodes.forEach(n => n.disconnect());
     s.context?.close().catch(() => {});
@@ -108,6 +110,14 @@ function createRelayRecorder(video, getAudios, callbacks) {
       if (!mimeType) throw new Error('지원되는 녹화 형식이 없습니다. Chrome을 사용하세요.');
       s.upload = await createDiskUpload(mimeType);
       if (s.stopping) { await s.upload.abort(); cleanup(s); update({status:'idle'}); return; }
+      // Keep the lease alive even when a static or suspended source emits no chunks.
+      s.heartbeatTimer = setInterval(async()=>{
+        if (s.heartbeatPending || s.uploadError) return;
+        s.heartbeatPending = true;
+        try { await s.upload.heartbeat(); }
+        catch(error) { /* Chunk/finalization requests surface sustained failures. */ }
+        finally { s.heartbeatPending = false; }
+      }, 20000);
       s.recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond: 5000000});
       s.recorder.ondataavailable = event => {
         if (!event.data.size || s.uploadError) return;

@@ -19,7 +19,21 @@ function playerURL() {
 function refreshAddress() { try { document.getElementById('player-address').textContent = playerURL(); } catch {} }
 portField.addEventListener('input', refreshAddress);
 function refreshRecordingSettings(){try{document.getElementById('recording-options').src=baseURL()+'recording-settings?embed=1';}catch{}}
-portField.addEventListener('change', refreshRecordingSettings);
+let portWrites = Promise.resolve();
+function savePort() {
+  const base = baseURL();
+  const port = Number(portField.value);
+  const saved = portWrites.catch(() => {}).then(() => chrome.storage.local.set({relayPort: port}));
+  portWrites = saved;
+  return saved.then(() => {
+    if (Number(portField.value) === port) refreshRecordingSettings();
+    return base;
+  });
+}
+portField.addEventListener('change', async () => {
+  try { await savePort(); message('Local server port saved.'); }
+  catch (error) { message('Port was not saved: ' + error.message, true); }
+});
 field.addEventListener('input', refreshAddress);
 function message(text, error = false) {
   status.textContent = text;
@@ -35,8 +49,8 @@ function meetingURL(value) {
 }
 async function save() {
   const url = meetingURL(field.value);
-  baseURL();
-  await chrome.storage.local.set({meetingURL: url, relayPort: Number(portField.value)});
+  await savePort();
+  await chrome.storage.local.set({meetingURL: url});
   field.value = url; refreshAddress();
   return url;
 }
@@ -53,13 +67,16 @@ openButton.addEventListener('click', async () => {
   } catch (error) { message(error.message, true); }
 });
 document.getElementById('copy').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(playerURL()); message('Player address copied.'); }
-  catch { message('Copy the address shown above manually.', true); }
+  try {
+    const url = playerURL();
+    await savePort();
+    await navigator.clipboard.writeText(url);
+    message('Port saved and player address copied.');
+  } catch (error) { message('Could not save/copy the player address: ' + error.message, true); }
 });
 captureButton.addEventListener('click', async () => {
   try {
-    const url = baseURL() + 'capture';
-    await chrome.storage.local.set({relayPort:Number(portField.value)});
+    const url = await savePort() + 'capture';
     await chrome.tabs.create({url});
   } catch (error) { message(error.message, true); }
 });

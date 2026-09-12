@@ -98,4 +98,4 @@ For isolated testing, change the Meet command above to port **18749** and set th
 
 **[Technical guide →](docs/technical.en.md)** Architecture, ports, verification status, the `cls-whale` shortcut, optional Meet extension setup, recording details, manual relay, troubleshooting, and development tests.
 
-Extension updates: reload the extension and rejoin the Whale meeting. Save link applies Local server port to the sender too.
+Extension updates: reload the extension and rejoin the Whale meeting. Local server port saves on change and before copying an address or opening capture; the sender follows the saved port.

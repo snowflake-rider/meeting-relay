@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const code = fs.readFileSync(path.join(__dirname, '../extension/popup.js'), 'utf8');
-async function harness(saved = {}) {
+async function harness(saved = {}, failSave = false) {
   const elements = {};
   function element(id) {
     return elements[id] ||= {value: '', textContent: '', classList: {toggle() {}}, handlers: {},
@@ -12,7 +12,7 @@ async function harness(saved = {}) {
   }
   const stored = {...saved}, tabs = [], copied = [];
   vm.runInNewContext(code, {URL, document: {getElementById: element},
-    chrome: {storage: {local: {get: async () => stored, set: async data => Object.assign(stored, data)}},
+    chrome: {storage: {local: {get: async () => stored, set: async data => { if (failSave) throw new Error("Storage unavailable"); Object.assign(stored, data); }}},
       tabs: {create: async data => tabs.push(data.url)}},
     navigator: {clipboard: {writeText: async text => copied.push(text)}}});
   await new Promise(resolve => setImmediate(resolve));
@@ -47,4 +47,37 @@ test('Meet links and custom relay ports route to the Meet player', async () => {
   assert.equal(h.copied[0], 'http://127.0.0.1:18747/?source=meet');
   await h.elements.capture.handlers.click();
   assert.equal(h.tabs[1], 'http://127.0.0.1:18747/capture');
+});
+
+test('changing then copying a port saves it without a class link', async () => {
+  const h = await harness({relayPort:18745});
+  h.elements['relay-port'].value = '18749';
+  h.elements['relay-port'].handlers.input();
+  await h.elements.copy.handlers.click();
+  assert.equal(h.stored.relayPort, 18749);
+  assert.deepEqual(h.copied, ['http://127.0.0.1:18749/']);
+  assert.equal(h.elements['recording-options'].src, 'http://127.0.0.1:18749/recording-settings?embed=1');
+  assert.equal(h.stored.meetingURL, undefined);
+});
+test('port change applies independently and rejects invalid ports', async () => {
+  const h = await harness({relayPort:18745});
+  h.elements['relay-port'].value = '18747';
+  await h.elements['relay-port'].handlers.change();
+  assert.equal(h.stored.relayPort, 18747);
+  assert.match(h.elements.status.textContent, /port saved/);
+  h.elements['relay-port'].value = '99999';
+  await h.elements['relay-port'].handlers.change();
+  await h.elements.copy.handlers.click();
+  assert.equal(h.stored.relayPort, 18747);
+  assert.equal(h.copied.length, 0);
+  assert.match(h.elements.status.textContent, /Could not/);
+});
+
+test('failed port persistence does not copy an unapplied address', async () => {
+  const h = await harness({relayPort:18745}, true);
+  h.elements['relay-port'].value = '18749';
+  await h.elements.copy.handlers.click();
+  assert.equal(h.stored.relayPort, 18745);
+  assert.equal(h.copied.length, 0);
+  assert.match(h.elements.status.textContent, /Storage unavailable/);
 });

@@ -98,4 +98,4 @@ python3 launch.py --no-open
 
 **[기술 문서 →](docs/technical.md)** 구조·포트·검증 범위, `cls-whale` 단축 명령, 확장으로 Meet 열기, 녹화 상세, 수동 중계, 문제 해결과 개발 테스트를 정리했습니다.
 
-확장 업데이트: 확장 관리에서 새로고침한 뒤 Whale 회의에 다시 입장하세요. Local server port 변경 후 Save link를 누르면 송신에도 적용됩니다.
+확장 업데이트: 확장 관리에서 새로고침한 뒤 Whale 회의에 다시 입장하세요. Local server port는 변경 시 자동 저장되며, 주소 복사·중계 열기 전에 송신 포트에도 적용됩니다.

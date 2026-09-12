@@ -10,7 +10,7 @@
 | Google Meet | User-selected Chrome tab capture | `http://127.0.0.1:18747/?source=meet` |
 | Whale manual relay | `sender.js` in the meeting Console | `http://127.0.0.1:18744/` |
 
-Meet uses 18747 in the quick start so it can coexist with the stable Whale server. Match the server's `--port` and the popup's **Local server port** to use another port. Whale's sender follows the saved port too; its default is 18745. Click Save link and open the receiving player at the same port.
+Meet uses 18747 in the quick start so it can coexist with the stable Whale server. Match the server's `--port` and the popup's **Local server port** to use another port. Whale's sender follows the saved port too; its default is 18745. The port saves independently of the class link. Open the receiving player at the same port.
 
 `main` includes Whale relay, experimental Google Meet support, and optional MP4 conversion. The server isolates Whale and Meet signaling channels. Use only one sending page per service at a time.
 
@@ -18,7 +18,7 @@ Meet capture starts with `getDisplayMedia()`. A direct user gesture and a fresh 
 
 ### Optional Meet extension workflow
 
-Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.5.2**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
+Load this branch's `extension` folder in Chrome using **Load unpacked** to install **Whale + Meet Local Relay 0.5.3**. Save the Meet URL, use **Open class**, set **Local server port** to `18747`, then select **Google Meet · 탭 중계 열기**. The extension does not start the Python server.
 
 ### Meet verification
 
@@ -179,7 +179,7 @@ Manual relay uses **18744**; extension relay uses **18745**. Use one receiving t
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs tests/reconnect.test.cjs tests/player-recovery.test.cjs
 ```
 
 On Windows, replace `python3` with `py -3`. Node.js is needed only for the extension tests. After editing `recording.js`, `player-ui.js`, or `player-ui.css`, run `python3 build_player_ui.py` to update both player HTML files.
@@ -197,10 +197,21 @@ Use one Whale meeting at a time. The project has no bundled meeting link. Save y
 
 ### Port settings and moved project folders
 
-Extension 0.5.2 applies the saved local port to the Whale sender as well as the player URL (default 18745). Save the setting and open the receiver at the new address. After updating the extension, reload it and rejoin the Whale meeting to install the new settings bridge.
+Extension 0.5.3 applies the saved local port to the Whale sender as well as the player URL (default 18745). Save the setting and open the receiver at the new address. After updating the extension, reload it and rejoin the Whale meeting to install the new settings bridge.
 
 Stop the server before moving its project folder, then restart it from the new location. Missing or unreadable required files make health and asset requests return HTTP 503 with recovery instructions; the launcher refuses to reuse that server.
 
 ### Automatic reconnection
 
 Whale and Meet retry on the next heartbeat after 8 seconds of disconnection or 20 seconds of unfinished negotiation. Receivers can request a restart for the current epoch; stale requests cannot replace a newer connection. Temporary signaling poll errors preserve healthy media. Browser timer delays can extend recovery time. Replacing tracks finalizes an active recording through the existing track-change handler; start a new recording afterward. Reload the extension, rejoin the meeting and refresh the player to apply the update.
+
+
+## Connection and recording recovery (0.5.3)
+
+- The launcher compares the server's startup project path and operational-file fingerprint. It rejects a stale or different-worktree server. Finish recordings, stop that server, then restart from the current project or choose a free port. The launcher does not terminate an existing server.
+- Whale reconnects when audio tracks are added, replaced, or removed, as well as when video changes. Original meeting tracks remain live. Track replacement ends an active recording; start a new recording afterward.
+- A connected player retries after 20 seconds of a muted/ended video track, or complete frames arriving without decoding progress. Intentional pause and static slides alone do not trigger recovery. Browser timer throttling can delay it.
+- Recording clients send a heartbeat every 20 seconds independently of chunks. After 120 seconds without activity, the next recording/API check marks a session interrupted and frees its slot. Partial files remain on disk. Browser suspension can therefore expire a recording.
+- Ctrl+C or SIGTERM shuts down and reaps owned FFmpeg processes. Each conversion attempt has a unique temporary output. SIGKILL and power loss cannot run cleanup, so process cleanup is not guaranteed in those cases.
+
+This update was checked with code, mocked media states, local HTTP, and FFmpeg tests. Live class video and Windows browser validation were not performed.

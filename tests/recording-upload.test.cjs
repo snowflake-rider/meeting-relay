@@ -10,6 +10,9 @@ test('disk uploader splits large blobs and retries the same sequence before adva
  }});
  vm.runInContext(fs.readFileSync(path.join(__dirname,'../recording-upload.js'),'utf8'),context);
  const upload=await context.createDiskUpload('video/webm');
+ await upload.heartbeat();
+ assert.equal(requests.at(-1).url,'/recording/test/heartbeat');
+ assert.equal(requests.at(-1).options.headers['X-Recording-Token'],'secret');
  await upload.append(new Blob([new Uint8Array(5*1024*1024)]));await upload.finish();
  const chunks=requests.filter(r=>r.url.includes('/chunk'));
  assert.deepEqual(chunks.map(r=>r.url),['/recording/test/chunk?seq=0','/recording/test/chunk?seq=0','/recording/test/chunk?seq=1']);

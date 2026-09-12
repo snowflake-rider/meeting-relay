@@ -2,7 +2,7 @@ import contextlib
 import importlib.util
 import io
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from http.client import RemoteDisconnected
 import os
 from pathlib import Path
@@ -65,6 +65,27 @@ class LauncherTests(unittest.TestCase):
             with patch.object(launch, 'urlopen', side_effect=error):
                 with self.assertRaisesRegex(RuntimeError, 'restart'):
                     launch.ready()
+
+    def test_matching_server_identity_is_reused(self):
+        body = json.dumps({'app':'whale-auto-relay','version':2,'ok':True,
+                           'features':['disk-recording'], 'identity':launch.identity(launch.ROOT)}).encode()
+        with patch.object(launch, 'urlopen', return_value=io.BytesIO(body)), patch.object(launch.subprocess, 'Popen') as spawn:
+            launch.ensure_server()
+            spawn.assert_not_called()
+
+    def test_stale_missing_or_other_checkout_identity_is_rejected(self):
+        current = launch.identity(launch.ROOT)
+        for value in (None, {**current, 'root': '/another/worktree'}, {**current, 'fingerprint':'outdated'}):
+            body = json.dumps({'app':'whale-auto-relay','version':2,'ok':True,
+                               'features':['disk-recording'], 'identity':value}).encode()
+            with patch.object(launch, 'urlopen', return_value=io.BytesIO(body)), patch.object(launch.subprocess, 'Popen') as spawn:
+                with self.assertRaisesRegex(RuntimeError, 'restart'):
+                    launch.ensure_server()
+                spawn.assert_not_called()
+
+    def test_offline_server_is_not_ready(self):
+        with patch.object(launch, 'urlopen', side_effect=URLError('connection refused')):
+            self.assertFalse(launch.ready())
 
     def test_mac_open_unchanged(self):
         with patch.object(launch.sys, 'platform', 'darwin'), patch.object(launch.subprocess, 'run') as run:

@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, '../recording.js'), 'utf8');
 function track(kind) { return {kind, readyState:'live', stopped:false, clone(){return track(kind);}, stop(){this.stopped=true;this.readyState='ended';}}; }
 function harness({audio=false, supported=true}={}) {
   class Stream { constructor(ts=[]){this.ts=ts;} addTrack(t){this.ts.push(t);} getVideoTracks(){return this.ts.filter(t=>t.kind==='video');} getAudioTracks(){return this.ts.filter(t=>t.kind==='audio');} }
-  let instance, tick;
+  let instance, tick; const timers=new Map(); let heartbeats=0;
   class Recorder {
     static isTypeSupported(type){return supported && type.startsWith('video/webm');}
     constructor(stream,opts){this.stream=stream;this.mimeType=opts.mimeType;this.state='inactive';instance=this;}
@@ -24,11 +24,11 @@ function harness({audio=false, supported=true}={}) {
   const v=track('video'), a=track('audio'), video={srcObject:new Stream([v])};
   const audios=audio?[{srcObject:new Stream([a])},{srcObject:new Stream([track('audio')])}]:[];
   const files=[], states=[], errors=[],uploaded=[];
-  const createDiskUpload=async()=>({append:async blob=>{uploaded.push(blob);},finish:async()=>({id:'test',state:'complete',format:'webm'}),abort:async()=>({})});
-  const ctx=vm.createContext({createDiskUpload,MediaStream:Stream,MediaRecorder:Recorder,AudioContext:AudioEngine,Blob,Date,setInterval(fn){tick=fn;return 1;},clearInterval(){}});
+  const createDiskUpload=async()=>({heartbeat:async()=>{heartbeats++;},append:async blob=>{uploaded.push(blob);},finish:async()=>({id:'test',state:'complete',format:'webm'}),abort:async()=>({})});
+  const ctx=vm.createContext({createDiskUpload,MediaStream:Stream,MediaRecorder:Recorder,AudioContext:AudioEngine,Blob,Date,setInterval(fn,ms){tick=fn;timers.set(ms,fn);return ms;},clearInterval(id){timers.delete(id);}});
   vm.runInContext(source,ctx);
   const controller=ctx.createRelayRecorder(video,()=>audios,{onFile(...args){files.push(args);},onState(s){states.push(s);},onError(e){errors.push(e);}});
-  return {controller,video,v,a,files,states,errors,uploaded,get recorder(){return instance;},tick(){tick();}};
+  return {controller,video,v,a,files,states,errors,uploaded,get recorder(){return instance;},timers,get heartbeats(){return heartbeats;},tick(){tick();}};
 }
 test('final chunk is saved and stopping never ends source tracks',async()=>{
   const h=harness();await h.controller.start();h.controller.stop();await new Promise(r=>setImmediate(r));
@@ -58,4 +58,11 @@ test('size threshold stops and saves rather than growing indefinitely',async()=>
 test('duplicate starts do not create a second recording',async()=>{
   const h=harness();await h.controller.start();const first=h.recorder;
   await h.controller.start();assert.equal(h.recorder,first);h.controller.stop();
+});
+
+test('heartbeat is independent of chunks and stops after saving',async()=>{
+ const h=harness();await h.controller.start();
+ await h.timers.get(20000)();assert.equal(h.heartbeats,1);assert.equal(h.uploaded.length,0);
+ h.controller.stop();await new Promise(r=>setImmediate(r));
+ assert.equal(h.timers.has(20000),false);
 });

@@ -10,7 +10,7 @@
 | Google Meet | 사용자가 선택한 Chrome 탭 캡처 | `http://127.0.0.1:18747/?source=meet` |
 | Whale 수동 중계 | Console에서 `sender.js` 실행 | `http://127.0.0.1:18744/` |
 
-Meet용 18747은 기존 Whale 서버와 함께 테스트하기 위한 선택입니다. 서버의 `--port`와 확장 팝업의 **Local server port**를 맞추면 다른 포트도 사용할 수 있습니다. Whale 송신도 저장한 포트에 맞춰 연결을 전환합니다. 기본값은 18745입니다. 포트를 바꾼 뒤 Save link를 누르고 수신 플레이어도 새 주소로 여세요.
+Meet용 18747은 기존 Whale 서버와 함께 테스트하기 위한 선택입니다. 서버의 `--port`와 확장 팝업의 **Local server port**를 맞추면 다른 포트도 사용할 수 있습니다. Whale 송신도 저장한 포트에 맞춰 연결을 전환합니다. 기본값은 18745입니다. 포트는 링크 저장과 별도로 자동 저장됩니다. 수신 플레이어도 새 주소로 여세요.
 
 `main`에 Whale 중계, 실험적 Google Meet 지원과 선택적 MP4 변환이 포함됩니다. Meet와 Whale은 서버 내부에서 서로 다른 메시지 채널을 사용합니다. 같은 서비스의 송신 창은 하나만 사용하세요.
 
@@ -18,7 +18,7 @@ Meet 캡처는 `getDisplayMedia()`로 시작합니다. 사용자가 직접 버�
 
 ### 확장으로 Meet 열기
 
-이 브랜치의 `extension` 폴더를 Chrome에서 **Load unpacked**로 설치하면 **Whale + Meet Local Relay 0.5.2**이 표시됩니다. Meet 링크를 저장하고 **Open class**로 엽니다. **Local server port**를 `18747`로 바꾼 뒤 **Google Meet · 탭 중계 열기**를 누르세요. 확장은 로컬 Python 서버를 실행하지 않습니다.
+이 브랜치의 `extension` 폴더를 Chrome에서 **Load unpacked**로 설치하면 **Whale + Meet Local Relay 0.5.3**이 표시됩니다. Meet 링크를 저장하고 **Open class**로 엽니다. **Local server port**를 `18747`로 바꾼 뒤 **Google Meet · 탭 중계 열기**를 누르세요. 확장은 로컬 Python 서버를 실행하지 않습니다.
 
 ### Meet 검증
 
@@ -179,7 +179,7 @@ flowchart LR
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_*.py'
-node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs
+node --test tests/extension.test.cjs tests/popup.test.cjs tests/recording.test.cjs tests/recording-upload.test.cjs tests/capture.test.cjs tests/reconnect.test.cjs tests/player-recovery.test.cjs
 ```
 
 Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScript 테스트에만 필요합니다. `recording.js`, `player-ui.js`, `player-ui.css`를 수정한 뒤 **`python3 build_player_ui.py`**로 두 플레이어 HTML을 갱신하세요.
@@ -198,8 +198,19 @@ Windows에서는 `python3` 대신 `py -3`을 사용합니다. Node.js는 JavaScr
 
 실행 중인 서버는 시작 당시의 프로젝트 경로를 사용합니다. 폴더 이동 전 서버를 종료하고, 이동 후 새 경로에서 다시 실행하세요. 필수 파일이 없거나 읽을 수 없으면 `/health`와 파일 요청이 복구 안내를 포함한 HTTP 503을 반환합니다. 실행기는 이 서버를 정상으로 재사용하지 않습니다.
 
-확장 0.5.2 업데이트 후 확장 관리에서 새로고침하고 Whale 회의에 다시 입장해야 새 포트 설정 전달 코드가 적용됩니다. 수업 중에는 기존 18745 연결을 유지하고 쉬는 시간에 업데이트할 수 있습니다.
+확장 0.5.3 업데이트 후 확장 관리에서 새로고침하고 Whale 회의에 다시 입장해야 새 포트 설정 전달 코드가 적용됩니다. 수업 중에는 기존 18745 연결을 유지하고 쉬는 시간에 업데이트할 수 있습니다.
 
 ### 자동 재연결
 
 Whale·Meet 송신은 연결 끊김이 8초 지속되거나 연결 협상이 20초를 넘으면 다음 연결 요청에서 재시도합니다. 수신 플레이어도 같은 조건에서 해당 연결의 epoch를 지정해 재시작을 요청합니다. 오래된 요청은 새 연결을 끊지 않습니다. 일시적인 시그널링 조회 실패는 정상 재생 중인 연결을 유지합니다. 실제 복구 시간은 브라우저 타이머 지연에 따라 늘어날 수 있습니다. 연결 교체 시 진행 중인 녹화는 기존 트랙 변경 처리에 따라 저장·종료되므로 다시 녹화를 시작하세요. 확장을 새로고침하고 회의에 다시 입장한 뒤 플레이어를 새로고침해야 업데이트가 적용됩니다.
+
+
+## 연결·녹화 복구 (0.5.3)
+
+- 실행기는 서버 시작 시 기록한 프로젝트 경로·실행 파일 지문을 비교합니다. 다른 worktree나 수정 전 서버가 같은 포트를 쓰면 재사용을 거부합니다. 녹화를 마친 뒤 해당 서버를 종료하고 현재 프로젝트에서 다시 실행하거나 빈 포트를 사용하세요. 실행기가 기존 서버를 강제 종료하지 않습니다.
+- Whale은 영상뿐 아니라 오디오 트랙의 추가·교체·제거도 감지하여 연결을 갱신합니다. 원본 회의 트랙은 중지하지 않습니다. 연결 교체 시 진행 중인 녹화는 종료되므로 새 녹화를 시작하세요.
+- 연결 상태가 정상이어도 영상 트랙이 20초 이상 muted/ended이거나, 완성된 프레임 수신은 계속되는데 디코딩이 멈춘 경우 재연결합니다. 일시정지와 정적인 슬라이드만으로 재연결하지 않습니다. 브라우저의 타이머 지연으로 복구가 늦어질 수 있습니다.
+- 녹화 클라이언트는 청크와 별도로 20초마다 생존 신호를 보냅니다. 120초 이상 활동이 없는 세션은 다음 녹화/API 조회 시 interrupted로 정리하여 녹화 슬롯을 반환합니다. 이미 기록한 부분 파일은 보존합니다. 브라우저 절전으로 신호도 중단되면 녹화가 만료될 수 있습니다.
+- 서버를 Ctrl+C 또는 SIGTERM으로 종료하면 진행 중인 FFmpeg를 종료하고 회수합니다. 변환 시도마다 다른 임시 파일을 사용합니다. SIGKILL·전원 차단은 정리 코드를 실행할 수 없으므로 이 경우 프로세스 정리를 보장하지 않습니다.
+
+이번 변경은 코드·모의 미디어 상태·로컬 HTTP·FFmpeg 테스트로 확인했습니다. 실제 강의 영상과 Windows 브라우저에서의 검증은 포함하지 않았습니다.

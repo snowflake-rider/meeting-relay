@@ -10,6 +10,7 @@ import sys
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
+from server_identity import identity
 
 ROOT = Path(__file__).resolve().parent
 PORT = 18745
@@ -71,6 +72,8 @@ def ready():
         raise RuntimeError(f'{PORT}번 포트의 서비스가 이 중계 서버와 일치하지 않습니다.')
     if 'disk-recording' not in data.get('features', []):
         raise RuntimeError('This port runs an older relay. Use --port 18749 for the recording feature, or restart the server from this project.')
+    if data.get('identity') != identity(ROOT):
+        raise RuntimeError('This port runs an older relay or a different project folder. Finish any recording, then restart the server from this project, or use a free --port.')
     return True
 
 

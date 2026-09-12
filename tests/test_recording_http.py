@@ -18,7 +18,7 @@ class RecordingHTTPTests(unittest.TestCase):
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
 
     def tearDown(self):
-        self.server.shutdown();self.server.server_close();self.thread.join();self.tmp.cleanup()
+        self.server.shutdown();self.server.recordings.close();self.server.server_close();self.thread.join();self.tmp.cleanup()
 
     def request(self,path,data=None,token=True,origin=None):
         headers={'Origin':origin or self.base}
@@ -33,6 +33,7 @@ class RecordingHTTPTests(unittest.TestCase):
 
     def test_upload_finalize_download(self):
         with self.request('/recording/start',{'mime':'video/webm'}) as r:id=json.load(r)['id']
+        with self.request(f'/recording/{id}/heartbeat',{}) as r:self.assertEqual(json.load(r)['state'],'recording')
         with self.request(f'/recording/{id}/chunk?seq=0',b'hello'):pass
         with self.request(f'/recording/{id}/finish',{'chunks':1}):pass
         with self.request(f'/recording/{id}/file?format=webm') as r:

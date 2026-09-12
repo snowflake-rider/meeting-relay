@@ -5,6 +5,8 @@ from collections import deque
 from urllib.parse import urlsplit, parse_qs
 import os
 from recording_http import attach_recordings, handle_recordings
+from server_identity import identity
+from server_lifecycle import serve
 import argparse
 import json
 import re
@@ -64,7 +66,7 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == '/health':
             for name in REQUIRED_ASSETS:
                 with (ROOT / name).open('rb') as asset: asset.read(1)
-            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture', 'disk-recording']})
+            self.reply({'ok': True, 'app': 'whale-auto-relay', 'version': 2, 'features': ['meet-tab-capture', 'disk-recording'], 'identity': getattr(self.server, 'relay_identity', None)})
         elif url.path == '/':
             self.reply((ROOT / 'auto-player.html').read_bytes(), content_type='text/html; charset=utf-8')
         elif url.path == '/player.js':
@@ -124,4 +126,5 @@ if __name__ == '__main__':
     print(f'Local Relay: http://127.0.0.1:{args.port}/', flush=True)
     server = ThreadingHTTPServer(('127.0.0.1', args.port), Handler)
     attach_recordings(server, os.environ.get('RELAY_RECORDINGS_DIR', str(ROOT / '.runtime' / 'recordings')))
-    server.serve_forever()
+    server.relay_identity = identity(ROOT)
+    serve(server)
